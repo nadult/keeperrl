@@ -20,10 +20,12 @@ public:
   // TODO: better way to communicate with FXManager ?
   static FXManager *getInstance();
 
+  enum class SimMode { normal, real };
+
   // Animations will look correct even when FPS is low
   // The downside is that more simulation steps are required
-  void simulateStable(double timeDelta, int desiredFps = 60);
-  void simulate(float timeDelta);
+  void simulateStable(double timeDelta, SimMode, int desiredFps = 60);
+  void simulate(double timeDelta, SimMode);
 
   const auto& getTextureDefs() const { return textureDefs; }
   const auto& getSystemDefs() const { return systemDefs; }
@@ -79,6 +81,7 @@ public:
   vector<ParticleSystem> systems;
   unique_ptr<RandomGen> randomGen;
   uint spawnClock = 1;
-  double accumFrameTime = 0.0f;
+
+  double accumFrameTime[2] = {0.0f, 0.0f};
 };
 }

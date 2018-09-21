@@ -121,5 +121,6 @@ struct ParticleSystemDef {
   vector<SubSystemDef> subSystems;
   optional<float> animLength;
   bool isLooped = false;
+  bool realTimeAnimation = false;
 };
 }

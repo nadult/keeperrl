@@ -36,26 +36,27 @@ SubSystemContext FXManager::ssctx(ParticleSystem &ps, int ssid) {
   return {ps, psdef, pdef, edef, textureDefs[pdef.textureName], ssid};
 }
 
-void FXManager::simulateStable(double timeDelta, int desiredFps) {
+void FXManager::simulateStable(double timeDelta, SimMode mode, int desiredFps) {
   PASSERT(timeDelta >= 0.0);
-  timeDelta += accumFrameTime;
+  auto& accum = accumFrameTime[mode == SimMode::normal ? 0 : 1];
+  timeDelta += accum;
 
   double desiredDelta = 1.0 / desiredFps;
   int numSteps = 0;
 
   // TODO: limit number of steps?
   while (timeDelta > desiredDelta) {
-    simulate(desiredDelta);
+    simulate(desiredDelta, mode);
     timeDelta -= desiredDelta;
     numSteps++;
   }
 
   if (timeDelta > desiredDelta * 0.1) {
     numSteps++;
-    simulate(timeDelta);
-    accumFrameTime = 0.0;
+    simulate(timeDelta, mode);
+    accum = 0.0;
   } else {
-    accumFrameTime = timeDelta;
+    accum = timeDelta;
   }
 }
 
@@ -154,9 +155,10 @@ void FXManager::simulate(ParticleSystem &ps, float timeDelta) {
   }
 }
 
-void FXManager::simulate(float delta) {
+void FXManager::simulate(double delta, SimMode mode) {
+  bool realMode = mode == SimMode::real;
   for (auto& inst : systems)
-    if (!inst.isDead)
+    if (!inst.isDead && systemDefs[inst.defId].realTimeAnimation == realMode)
       simulate(inst, delta);
 }
 

@@ -93,6 +93,7 @@ static void addWoodSplinters(FXManager &mgr) {
 
   ParticleSystemDef psdef;
   psdef.subSystems = {ssdef};
+  psdef.realTimeAnimation = true;
   mgr.addDef(FXName::WOOD_SPLINTERS, psdef);
 }
 
@@ -124,6 +125,7 @@ static void addRockSplinters(FXManager &mgr) {
 
   ParticleSystemDef psdef;
   psdef.subSystems = {ssdef};
+  psdef.realTimeAnimation = true;
   // TODO: cząsteczki mogą mieć różny czas życia
   mgr.addDef(FXName::ROCK_SPLINTERS, psdef);
 }
@@ -156,6 +158,7 @@ static void addRockCloud(FXManager &mgr) {
 
   ParticleSystemDef psdef;
   psdef.subSystems = {ssdef};
+  psdef.realTimeAnimation = true;
   mgr.addDef(FXName::ROCK_CLOUD, psdef);
 }
 

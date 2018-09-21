@@ -1171,19 +1171,21 @@ void MapGui::updateObjects(CreatureView* view, MapLayout* mapLayout, bool smooth
   auto currentTimeReal = clock->getRealMillis();
 
   if (auto* inst = fx::FXManager::getInstance()) {
-    // FXes animation speed depends on game speed in real-time mode
-    // In turn based mode though animations are always running at constant speed
-    // (it would look bad otherwise)
+    // Some FXes don't look good when animated at normal speed in fast real-time mode
+    // These can use realTime for animation; All the other effects are animated at more
+    // or less constant speed
     bool isTurnBased = level->getGame()->isTurnBased();
     double realTime = view->getAnimationTime() * 0.5, turnTime = double(currentTimeReal.count()) * 0.001;
-    double refTime = isTurnBased ? lastFxTimeTurn : lastFxTimeReal;
-    double maxTimeDiff = isTurnBased ? 0.1f : 0.25f;
-    double timeDiff = min((isTurnBased ? turnTime : realTime) - refTime, maxTimeDiff);
-    if (refTime < 0.0 || timeDiff < 0.0 || isTurnBased != lastFxTurnBased) {
-      timeDiff = 1.0 / 30.0;
+    double realTimeDiff = min(realTime - lastFxTimeReal, 0.25);
+    double turnTimeDiff = min(turnTime - lastFxTimeTurn, 0.1);
+
+    if (lastFxTimeReal < 0.0 || realTimeDiff < 0.0 || turnTimeDiff < 0.0 || isTurnBased != lastFxTurnBased) {
+      realTimeDiff = turnTimeDiff = 1.0 / 3.0;
       lastFxTurnBased = isTurnBased;
     }
-    inst->simulateStable(timeDiff);
+
+    inst->simulateStable(turnTimeDiff, fx::FXManager::SimMode::normal);
+    inst->simulateStable(isTurnBased ? turnTimeDiff : realTimeDiff, fx::FXManager::SimMode::real);
     lastFxTimeReal = realTime;
     lastFxTimeTurn = turnTime;
   }
