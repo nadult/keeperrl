@@ -6,7 +6,8 @@
 #include <unistd.h>
 #include "dirent.h"
 
-DirectoryPath::DirectoryPath(const std::string& p) : path(p) {}
+DirectoryPath::DirectoryPath(string p) : path(move(p)) {
+}
 
 FilePath DirectoryPath::file(const std::string& f) const {
   return FilePath(*this, f);
@@ -84,4 +85,41 @@ const char* DirectoryPath::getPath() const {
 
 std::ostream& operator <<(std::ostream& d, const DirectoryPath& path) {
   return d << path.getPath();
+}
+
+bool isAbsolutePath(const char* str) {
+  // TODO: mac support
+#ifdef _WIN32
+  if ((str[0] >= 'a' && str[0] <= 'z') || (str[0] >= 'A' && str[0] <= 'Z'))
+    if (str[1] == ':' && (str[2] == '/' || str[2] == '\\'))
+      return true;
+#else
+  if (str[0] == '/')
+    return true;
+#endif
+  return false;
+}
+
+DirectoryPath DirectoryPath::current() {
+  char buffer[2048];
+#ifdef _WIN32
+  if (!GetCurrentDirectory(sizeof(buf), buf))
+    CHECK(false && "GetCurrentDirectory error");
+  return string(buf);
+#else
+  char* name = getcwd(buffer, sizeof(buffer) - 1);
+  CHECK(name && "getcwd error");
+  return DirectoryPath(name);
+#endif
+}
+
+bool DirectoryPath::isAbsolute() const {
+  return isAbsolutePath(path.c_str());
+}
+
+DirectoryPath DirectoryPath::absolute() const {
+  if (isAbsolutePath(path.c_str()))
+    return *this;
+  // TODO: this is not exactly right if paths contain dots (../../)
+  return DirectoryPath(current().path + "/" + path);
 }
