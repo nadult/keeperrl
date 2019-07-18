@@ -40,6 +40,10 @@ struct Client::Impl {
 
 static Client* s_instance = nullptr;
 
+bool Client::isAvailable() {
+  return !!s_instance;
+}
+
 #define IFACE_INSTANCE(name, funcName)                                                                                 \
   name& name::instance() {                                                                                             \
     return Client::instance().funcName();                                                                              \

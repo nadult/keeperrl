@@ -80,7 +80,7 @@ endif
 # the game executable is.
 ifdef STEAMWORKS
 include Makefile-steam
-cflags += -DUSE_STEAMWORKS
+CFLAGS += -DUSE_STEAMWORKS
 STEAM_LIBS=-L $(STEAM_LIB_DIR) -l $(STEAM_LIB_NAME)
 
 endif

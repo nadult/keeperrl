@@ -69,6 +69,12 @@
 
 #endif
 
+#ifdef USE_STEAMWORKS
+#include "steam_base.h"
+#include "steam_client.h"
+#include "steam_user.h"
+#endif
+
 #ifndef DATA_DIR
 #define DATA_DIR "."
 #endif
@@ -298,6 +304,7 @@ static int keeperMain(po::parser& commandLineFlags) {
   UserErrorLog.addOutput(DebugOutput::exitProgram());
   UserErrorLog.addOutput(DebugOutput::toStream(std::cerr));
   UserInfoLog.addOutput(DebugOutput::toStream(std::cerr));
+
 #ifndef RELEASE
   ogzstream compressedLog("log.gz");
   if (!commandLineFlags["nolog"].was_set())
@@ -318,6 +325,16 @@ static int keeperMain(po::parser& commandLineFlags) {
     else
       return DATA_DIR;
   }());
+
+#ifdef USE_STEAMWORKS
+  bool withSteam = steam::initAPI();
+  optional<steam::Client> steamClient;
+  if (withSteam) {
+	  steamClient.emplace();
+	  INFO << "Steam ID: " << steam::User::instance().id().ConvertToUint64();
+  }
+#endif
+  
   auto freeDataPath = dataPath.subdirectory("data_free");
   auto paidDataPath = dataPath.subdirectory("data");
   auto contribDataPath = dataPath.subdirectory("data_contrib");

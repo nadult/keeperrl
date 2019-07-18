@@ -11,6 +11,7 @@ class Client {
   void operator=(const Client&) = delete;
   ~Client();
 
+  static bool isAvailable();
   static Client& instance();
 
   Friends& friends();
