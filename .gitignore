@@ -1,3 +1,4 @@
+steamworks/
 *.kep
 *.aut
 *.sit
@@ -20,3 +21,4 @@ KeeperRL.includes
 keeper
 gen_version
 log.gz
+libsteam_api.so

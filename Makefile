@@ -72,6 +72,19 @@ ifdef TEXT_SERIALIZATION
 CFLAGS += -DTEXT_SERIALIZATION
 endif
 
+# Steam SDK has to be present in steamworks/
+# (at least public/ and redistributable_bin/ subdirs)
+# TODO: move to extern/ ?
+#
+# To run keeper with steam support, don't forget to copy appropriate .so file where
+# the game executable is.
+ifdef STEAMWORKS
+include Makefile-steam
+cflags += -DUSE_STEAMWORKS
+STEAM_LIBS=-L $(STEAM_LIB_DIR) -l $(STEAM_LIB_NAME)
+
+endif
+
 ifdef OPT
 OBJDIR = obj-opt
 else
@@ -96,9 +109,14 @@ endif
 
 LDFLAGS += -L/usr/local/lib
 
+ifdef STEAMWORKS
 SRCS = $(shell ls -t *.cpp)
+else
+SRCS = $(shell ls -t *.cpp | grep -v steam_.*.cpp)
+endif
 
-LIBS = -L/usr/lib/x86_64-linux-gnu $(OPENGL_LIBS) -lSDL2 -lopenal -lvorbis -lvorbisfile -lSDL2_image $(BOOST_LIBS) -lz -lpthread -lcurl ${LDFLAGS}
+LIBS = -L/usr/lib/x86_64-linux-gnu $(OPENGL_LIBS) -lSDL2 -lopenal -lvorbis -lvorbisfile -lSDL2_image \
+	   $(BOOST_LIBS) -lz -lpthread -lcurl ${LDFLAGS} $(STEAM_LIBS)
 
 ifdef EASY_PROFILER
 LIBS += libeasy_profiler.so
