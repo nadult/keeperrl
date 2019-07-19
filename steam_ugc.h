@@ -21,6 +21,7 @@ struct InstallInfo {
 struct QueryInfo {
   string searchText;
   unsigned playtimeStatsDays = 0;
+  // TODO: flags
   bool additionalPreviews = false;
   bool children = false;
   bool keyValueTags = false;

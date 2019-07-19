@@ -24,7 +24,7 @@ time_t FilePath::getModificationTime() const {
 }
 
 bool FilePath::exists() const {
-#ifdef _WIN32
+#ifdef WINDOWS
   struct _stat buf;
   _stat(fullPath.c_str(), &buf);
   return S_ISREG(buf.st_mode);

@@ -8,5 +8,6 @@ class User {
   STEAM_IFACE_DECL(User)
 
   CSteamID id() const;
+  bool isLoggedOn() const;
 };
 }

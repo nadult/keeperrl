@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include "dirent.h"
 
+// TODO: check functions on mac
+
 DirectoryPath::DirectoryPath(string p) : path(move(p)) {
 }
 
@@ -27,6 +29,15 @@ static bool isDirectory(const string& path) {
 
 bool DirectoryPath::exists() const {
   return isDirectory(getPath());
+}
+
+bool DirectoryPath::make() {
+#ifdef WINDOWS
+  int ret = mkdir(path.c_str());
+#else
+  int ret = mkdir(path.c_str(), 0775);
+#endif
+  return ret == 0;
 }
 
 void DirectoryPath::createIfDoesntExist() const {
@@ -88,8 +99,7 @@ std::ostream& operator <<(std::ostream& d, const DirectoryPath& path) {
 }
 
 bool isAbsolutePath(const char* str) {
-  // TODO: mac support
-#ifdef _WIN32
+#ifdef WINDOWS
   if ((str[0] >= 'a' && str[0] <= 'z') || (str[0] >= 'A' && str[0] <= 'Z'))
     if (str[1] == ':' && (str[2] == '/' || str[2] == '\\'))
       return true;
@@ -102,7 +112,7 @@ bool isAbsolutePath(const char* str) {
 
 DirectoryPath DirectoryPath::current() {
   char buffer[2048];
-#ifdef _WIN32
+#ifdef WINDOWS
   if (!GetCurrentDirectory(sizeof(buf), buf))
     CHECK(false && "GetCurrentDirectory error");
   return string(buf);
@@ -111,6 +121,30 @@ DirectoryPath DirectoryPath::current() {
   CHECK(name && "getcwd error");
   return DirectoryPath(name);
 #endif
+}
+
+optional<string> DirectoryPath::copyFiles(DirectoryPath from, DirectoryPath to, bool recursive) {
+  if (!to.exists())
+    to.make();
+
+  // TODO: do it in better way
+  // TODO: report errors
+  for (auto file : from.getFiles()) {
+    if (auto contents = file.readContents()) {
+      ofstream out(string(to.getPath()) + "/" + file.getFileName());
+      out << *contents;
+    }
+  }
+
+  if (recursive) {
+    for (auto dir : from.getSubDirs()) {
+      DirectoryPath subTo(string(to.getPath()) + "/" + dir);
+      DirectoryPath subFrom(string(from.getPath()) + "/" + dir);
+      copyFiles(subFrom, subTo, recursive);
+    }
+  }
+
+  return none;
 }
 
 bool DirectoryPath::isAbsolute() const {

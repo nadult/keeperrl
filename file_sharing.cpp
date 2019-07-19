@@ -9,6 +9,10 @@
 
 #include <curl/curl.h>
 
+#include "steam_client.h"
+#include "steam_ugc.h"
+#include "steam_user.h"
+
 FileSharing::FileSharing(const string& url, Options& o, string id) : uploadUrl(url), options(o),
     uploadLoop(bindMethod(&FileSharing::uploadingLoop, this)), installId(id), wasCancelled(false) {
   curl_global_init(CURL_GLOBAL_ALL);
@@ -330,15 +334,119 @@ static optional<FileSharing::OnlineModInfo> parseModInfo(const vector<string>& f
     if (auto numGames = fromStringSafe<int>(unescapeEverything(fields[3])))
       if (auto version = fromStringSafe<int>(unescapeEverything(fields[4])))
       return FileSharing::OnlineModInfo{unescapeEverything(fields[0]), unescapeEverything(fields[1]), unescapeEverything(fields[2]),
-          *numGames, *version};
+          none, *numGames, *version};
+  return none;
+}
+
+static string shortDescription(string text, int max_lines = 3) {
+  int num_lines = 1;
+  for (int n = 0; n < (int)text.size(); n++) {
+    if (text[n] == '\n') {
+      num_lines++;
+      if (num_lines > max_lines) {
+        text.resize(n);
+        break;
+      }
+    }
+  }
+  while (text.back() == '\n')
+    text.pop_back();
+  return text;
+}
+
+optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVersion) {
+  if (!steam::Client::isAvailable())
+    return none;
+  // TODO: thread safety
+  auto& ugc = steam::UGC::instance();
+  auto& user = steam::User::instance();
+
+  vector<steam::ItemId> items;
+  if (user.isLoggedOn()) {
+    // TODO: load list of all mods
+  } else {
+    // TODO: when we're offline, let's only download subscribed mods
+    items = ugc.subscribedItems();
+  }
+
+  if (items.empty()) {
+    // TODO: inform that no mods are present (not subscribed or ...)
+    return vector<FileSharing::OnlineModInfo>();
+  }
+
+  steam::QueryInfo qinfo;
+  qinfo.longDescription = true;
+  qinfo.keyValueTags = true;
+  auto qid = ugc.createQuery(qinfo, items);
+  int numRetries = 100;
+  // TODO: handle multiple pages
+
+  for (int r = 0; r < numRetries; r++) {
+    steam::runCallbacks();
+    ugc.updateQueries();
+
+    auto qstatus = ugc.queryStatus(qid);
+    if (qstatus == QueryStatus::completed) {
+      auto results = ugc.queryResults(qid);
+
+      vector<OnlineModInfo> out;
+      for (int n = 0; n < results.count; n++) {
+        auto details = ugc.queryDetails(qid, n);
+        OnlineModInfo info;
+        info.author = "TODO";
+        info.description = shortDescription(details.m_rgchDescription);
+        info.name = details.m_rgchTitle;
+        info.numGames = 1337; // TODO
+        info.steamId = details.m_nPublishedFileId;
+        info.version = 31; // TODO
+        INFO << "SteamMods| Mod: " << info.name;
+        INFO << "Desc: || " << info.description << "||";
+        out.emplace_back(info);
+      }
+      ugc.finishQuery(qid);
+      return out;
+    } else if (qstatus != QueryStatus::pending) {
+      INFO << "SteamMods| Error: " << ugc.queryError(qid);
+      ugc.finishQuery(qid);
+      return none;
+    }
+
+    usleep(50 * 1000);
+  }
+
+  ugc.finishQuery(qid);
+  INFO << "SteamMods| Error: timeout";
+
   return none;
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getOnlineMods(int modVersion) {
+  if (auto steamMods = getSteamMods(modVersion))
+    return steamMods;
   if (options.getBoolValue(OptionId::ONLINE))
     if (auto content = downloadContent(uploadUrl + "/get_mods.php?version=" + toString(modVersion)))
       return parseLines<FileSharing::OnlineModInfo>(*content, parseModInfo);
   return none;
+}
+
+optional<string> FileSharing::downloadSteamMod(unsigned long long id, const string& name, const DirectoryPath& modsDir,
+                                               ProgressMeter& meter) {
+  CHECK(steam::Client::isAvailable());
+
+  auto& ugc = steam::UGC::instance();
+  auto& user = steam::User::instance();
+
+  auto state = ugc.state(id);
+  bool isInstalled = state & k_EItemStateInstalled;
+
+  if (!isInstalled) {
+    // TODO: download & install mod
+    return string("Mod not installed!");
+  }
+
+  auto instInfo = ugc.installInfo(id);
+  DirectoryPath subDir(string(modsDir.getPath()) + "/" + name);
+  return DirectoryPath::copyFiles(DirectoryPath(instInfo.folder), subDir, true);
 }
 
 optional<string> FileSharing::downloadMod(const string& modName, const DirectoryPath& modsDir, ProgressMeter& meter) {

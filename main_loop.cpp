@@ -530,7 +530,9 @@ void MainLoop::showMods() {
       optional<string> error;
       doWithSplash(SplashType::SMALL, "Downloading mod \"" + downloadMod.name + "\"...", 1,
           [&] (ProgressMeter& meter) {
-            error = fileSharing->downloadMod(downloadMod.name, modDir, meter);
+            error = downloadMod.steamId?
+              fileSharing->downloadSteamMod(*downloadMod.steamId, downloadMod.name, modDir, meter) :
+              fileSharing->downloadMod(downloadMod.name, modDir, meter);
             if (!error)
               updateLocalVersion(downloadMod.name, downloadMod.version);
           },

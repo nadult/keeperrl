@@ -12,4 +12,8 @@ User::~User() = default;
 CSteamID User::id() const {
   return FUNC(GetSteamID)(ptr);
 }
+
+bool User::isLoggedOn() const {
+  return FUNC(BLoggedOn)(ptr);
+}
 }
