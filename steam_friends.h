@@ -1,7 +1,7 @@
 #pragma once
 
 #include "steam_base.h"
-#include <steamworks/public/steam/isteamfriends.h>
+#include "steamworks/public/steam/isteamfriends.h"
 
 namespace steam {
 class Friends {

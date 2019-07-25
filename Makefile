@@ -72,9 +72,8 @@ ifdef TEXT_SERIALIZATION
 CFLAGS += -DTEXT_SERIALIZATION
 endif
 
-# Steam SDK has to be present in steamworks/
+# Steam SDK has to be present in extern/steamworks/
 # (at least public/ and redistributable_bin/ subdirs)
-# TODO: move to extern/ ?
 #
 # To run keeper with steam support, don't forget to copy appropriate .so file where
 # the game executable is.

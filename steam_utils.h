@@ -1,7 +1,7 @@
 #pragma once
 
 #include "steam_base.h"
-#include <steamworks/public/steam/isteamutils.h>
+#include "steamworks/public/steam/isteamutils.h"
 
 namespace steam {
 

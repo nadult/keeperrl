@@ -7,8 +7,8 @@
 #include "steam_ugc.h"
 #include "steam_utils.h"
 
-#include <steamworks/public/steam/isteamclient.h>
-#include <steamworks/public/steam/isteamuserstats.h>
+#include "steamworks/public/steam/isteamclient.h"
+#include "steamworks/public/steam/isteamuserstats.h"
 
 #define FUNC(name) SteamAPI_ISteamClient_##name
 #define US_FUNC(name) SteamAPI_ISteamUserStats_##name

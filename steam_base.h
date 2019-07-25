@@ -1,6 +1,6 @@
 #pragma once
 
-#include <steamworks/public/steam/steamclientpublic.h>
+#include "steamworks/public/steam/steamclientpublic.h"
 #include "util.h"
 
 // Notes:
