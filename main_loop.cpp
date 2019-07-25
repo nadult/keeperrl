@@ -510,10 +510,14 @@ void MainLoop::showMods() {
             upToDate = "new version available";
       lines.emplace_back(ListElem(title, upToDate, ListElem::NORMAL));
     }
+
     lines.emplace_back(onlineMods ? "Online mods:" : "Unable to fetch online mods", ListElem::TITLE);
     if (onlineMods)
       for (auto& elem : *onlineMods) {
-        lines.emplace_back("Download \"" + elem.name + "\"", ListElem::NORMAL);
+        string suffix;
+        if(elem.steamId)
+          suffix += " [STEAM]";
+        lines.emplace_back("Download \"" + elem.name + "\"" + suffix, ListElem::NORMAL);
         lines.emplace_back("Author: " + elem.author, ListElem::HELP_TEXT);
         lines.emplace_back(elem.description, ListElem::HELP_TEXT);
         lines.emplace_back("Number of games played: " + toString(elem.numGames), ListElem::HELP_TEXT);

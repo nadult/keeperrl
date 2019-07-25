@@ -366,8 +366,10 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
 
-  vector<steam::ItemId> items;
-  if (user.isLoggedOn()) {
+  vector<steam::ItemId> items, subscribedItems;
+  subscribedItems = ugc.subscribedItems();
+
+  if (user.isLoggedOn()) { // Is this check necessary? Maybe we should try anyways?
     int numRetries = 100;
 
     steam::QueryInfo qinfo;
@@ -397,11 +399,11 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
     // TODO: handle errors
     // TODO: czy chcemy je jakoś filtrować? Czy na razie po prostu dajemy wszystkie / najpopularniejsze?
     // But focus on subscribed mods as well ?
-  } else {
-    // TODO: when we're offline, let's only download subscribed mods
-    // TODO: notify that we're offline ?
-    items = ugc.subscribedItems();
   }
+
+  items.append(subscribedItems);
+  sort(items.begin(), items.end());
+  items.resize(std::unique(items.begin(), items.end()) - items.begin());
 
   if (items.empty()) {
     INFO << "STEAM: No items present";
@@ -435,12 +437,15 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
         info.numGames = 1337; // TODO
         info.steamId = details.m_nPublishedFileId;
         info.version = 31; // TODO
+        info.isSubscribed = subscribedItems.contains(info.steamId);
         INFO << "STEAM: Mod: " << info.name;
         INFO << "Desc: || " << info.description << "||";
         out.emplace_back(info);
       }
       ugc.finishQuery(qid);
       INFO << "STEAM: Retrieved " << out.size() << " mods";
+
+      // TODO: show subscribed items in front
       return out;
     } else if (qstatus != QueryStatus::pending) {
       INFO << "STEAM: Error: " << ugc.queryError(qid);
