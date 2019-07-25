@@ -47,6 +47,7 @@ struct UGC::Impl {
 };
 
 UGC::UGC(intptr_t ptr) : ptr(ptr) {
+  static_assert(maxItemsPerPage <= (int)kNumUGCResultsPerPage, "");
 }
 UGC::~UGC() = default;
 
@@ -56,6 +57,7 @@ int UGC::numSubscribedItems() const {
 
 vector<ItemId> UGC::subscribedItems() const {
   vector<ItemId> out(numSubscribedItems());
+  INFO << "STEAM: num: " << out.size();
   int result = FUNC(GetSubscribedItems)(ptr, out.data(), out.size());
   out.resize(result);
   return out;
@@ -98,8 +100,8 @@ void UGC::setupQuery(QHandle handle, const QueryInfo& info) {
     FUNC(SetSearchText)(ptr, handle, info.searchText.c_str());
 }
 
-UGC::QueryId UGC::createQuery(const QueryInfo& info, vector<ItemId> items) {
-  CHECK(items.size() >= 1);
+UGC::QueryId UGC::createDetailsQuery(const QueryInfo& info, vector<ItemId> items) {
+  CHECK(items.size() >= 1 && items.size() < maxItemsPerPage);
 
   auto handle = FUNC(CreateQueryUGCDetailsRequest)(ptr, items.data(), items.size());
   CHECK(handle != k_UGCQueryHandleInvalid);
@@ -110,15 +112,23 @@ UGC::QueryId UGC::createQuery(const QueryInfo& info, vector<ItemId> items) {
   return impl->allocQuery(handle, info, callId);
 }
 
-UGC::QueryId UGC::createQuery(const QueryInfo& info, EUGCQuery type, EUGCMatchingUGCType matching_type, unsigned app_id,
-                              int page_id) {
-  CHECK(page_id >= 1);
-  auto handle = FUNC(CreateQueryAllUGCRequest)(ptr, type, matching_type, app_id, app_id, page_id);
+static const EnumMap<QueryOrder, EUGCQuery> queryOrderMap{
+    {QueryOrder::votes, k_EUGCQuery_RankedByVote},
+    {QueryOrder::date, k_EUGCQuery_RankedByPublicationDate},
+    {QueryOrder::subscriptions, k_EUGCQuery_RankedByTotalUniqueSubscriptions},
+    {QueryOrder::playtime, k_EUGCQuery_RankedByTotalPlaytime}};
+
+UGC::QueryId UGC::createQuery(const QueryInfo& info, QueryOrder order, int pageId) {
+  CHECK(pageId >= 1);
+  auto appId = Utils::instance().appId();
+
+  //auto match = k_EUGCMatchingUGCType_Items;
+  auto match = k_EUGCMatchingUGCType_All;
+  auto handle = FUNC(CreateQueryAllUGCRequest)(ptr, queryOrderMap[order], match, appId, appId, pageId);
   CHECK(handle != k_UGCQueryHandleInvalid);
   // TODO: properly handle errors
 
   setupQuery(handle, info);
-
   auto callId = FUNC(SendQueryUGCRequest)(ptr, handle);
   return impl->allocQuery(handle, info, callId);
 }
@@ -155,6 +165,19 @@ QueryResults UGC::queryResults(QueryId qid) const {
   auto& result = impl->queries[qid].call.result();
   return {(int)result.m_unNumResultsReturned, (int)result.m_unTotalMatchingResults};
 }
+  
+vector<ItemId> UGC::queryIds(QueryId qid) const {
+  vector<ItemId> out;
+  auto results = queryResults(qid);
+  INFO << "STEAM: results: " << results.count << " " << results.total;
+  out.reserve(results.count);
+  QueryDetails details;
+  for(int n = 0; n < results.count; n++) {
+    queryDetails(qid, n, details);
+    out.emplace_back(details.m_nPublishedFileId);
+  }
+  return out;
+}
 
 string UGC::queryError(QueryId qid) const {
   CHECK(isQueryValid(qid));
@@ -164,15 +187,13 @@ string UGC::queryError(QueryId qid) const {
   return "";
 }
 
-QueryDetails UGC::queryDetails(QueryId qid, int index) {
+void UGC::queryDetails(QueryId qid, int index, QueryDetails &out) const{
   CHECK(queryStatus(qid) == QStatus::completed);
   auto& query = impl->queries[qid];
 
-  QueryDetails out;
   auto result = FUNC(GetQueryUGCResult)(ptr, query.handle, index, &out);
   CHECK(result);
   // TODO: properly handle errors
-  return out;
 }
 
 string UGC::queryMetadata(QueryId qid, int index) {

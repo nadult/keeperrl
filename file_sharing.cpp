@@ -334,7 +334,7 @@ static optional<FileSharing::OnlineModInfo> parseModInfo(const vector<string>& f
     if (auto numGames = fromStringSafe<int>(unescapeEverything(fields[3])))
       if (auto version = fromStringSafe<int>(unescapeEverything(fields[4])))
       return FileSharing::OnlineModInfo{unescapeEverything(fields[0]), unescapeEverything(fields[1]), unescapeEverything(fields[2]),
-          none, *numGames, *version};
+          *numGames, *version};
   return none;
 }
 
@@ -355,21 +355,56 @@ static string shortDescription(string text, int max_lines = 3) {
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVersion) {
-  if (!steam::Client::isAvailable())
+  INFO << "STEAM: Retrieving mods...";
+
+  if (!steam::Client::isAvailable()) {
+    INFO << "STEAM: Client not available";
     return none;
+  }
+
   // TODO: thread safety
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
 
   vector<steam::ItemId> items;
   if (user.isLoggedOn()) {
-    // TODO: load list of all mods
+    int numRetries = 100;
+
+    steam::QueryInfo qinfo;
+    qinfo.onlyIds = true;
+    auto qid = ugc.createQuery(qinfo, SteamQueryOrder::playtime, 1);
+
+    for (int r = 0; r < numRetries; r++) {
+      steam::runCallbacks();
+      ugc.updateQueries();
+
+      // TODO: multiple pages
+
+      auto qstatus = ugc.queryStatus(qid);
+      if (qstatus == QueryStatus::completed) {
+        items = ugc.queryIds(qid);
+        INFO << "STEAM: completed query: " << items.size();
+        break;
+      } else if (qstatus == QueryStatus::failed) {
+        INFO << "STEAM: Error while querying for mods";
+        ugc.finishQuery(qid);
+      }
+
+      usleep(50 * 1000);
+    }
+
+    ugc.finishQuery(qid);
+    // TODO: handle errors
+    // TODO: czy chcemy je jakoś filtrować? Czy na razie po prostu dajemy wszystkie / najpopularniejsze?
+    // But focus on subscribed mods as well ?
   } else {
     // TODO: when we're offline, let's only download subscribed mods
+    // TODO: notify that we're offline ?
     items = ugc.subscribedItems();
   }
 
   if (items.empty()) {
+    INFO << "STEAM: No items present";
     // TODO: inform that no mods are present (not subscribed or ...)
     return vector<FileSharing::OnlineModInfo>();
   }
@@ -377,7 +412,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   steam::QueryInfo qinfo;
   qinfo.longDescription = true;
   qinfo.keyValueTags = true;
-  auto qid = ugc.createQuery(qinfo, items);
+  auto qid = ugc.createDetailsQuery(qinfo, items);
   int numRetries = 100;
   // TODO: handle multiple pages
 
@@ -390,8 +425,9 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
       auto results = ugc.queryResults(qid);
 
       vector<OnlineModInfo> out;
+      steam::QueryDetails details;
       for (int n = 0; n < results.count; n++) {
-        auto details = ugc.queryDetails(qid, n);
+        ugc.queryDetails(qid, n, details);
         OnlineModInfo info;
         info.author = "TODO";
         info.description = shortDescription(details.m_rgchDescription);
@@ -399,14 +435,15 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
         info.numGames = 1337; // TODO
         info.steamId = details.m_nPublishedFileId;
         info.version = 31; // TODO
-        INFO << "SteamMods| Mod: " << info.name;
+        INFO << "STEAM: Mod: " << info.name;
         INFO << "Desc: || " << info.description << "||";
         out.emplace_back(info);
       }
       ugc.finishQuery(qid);
+      INFO << "STEAM: Retrieved " << out.size() << " mods";
       return out;
     } else if (qstatus != QueryStatus::pending) {
-      INFO << "SteamMods| Error: " << ugc.queryError(qid);
+      INFO << "STEAM: Error: " << ugc.queryError(qid);
       ugc.finishQuery(qid);
       return none;
     }
@@ -415,7 +452,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   }
 
   ugc.finishQuery(qid);
-  INFO << "SteamMods| Error: timeout";
+  INFO << "STEAM: Error: timeout";
 
   return none;
 }
@@ -502,4 +539,3 @@ optional<string> FileSharing::download(const string& filename, const string& rem
   } else
     return string("Failed to initialize libcurl");
 }
-

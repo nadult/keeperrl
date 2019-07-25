@@ -39,9 +39,12 @@ class FileSharing {
     string name;
     string author;
     string description;
-    optional<unsigned long long> steamId;
     int numGames;
     int version;
+    
+    // Steam mod info:
+    optional<unsigned long long> steamId = none;
+    bool isSubscribed = false;
   };
 
   optional<vector<OnlineModInfo>> getSteamMods(int modVersion);

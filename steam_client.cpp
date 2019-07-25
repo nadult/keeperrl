@@ -110,4 +110,16 @@ optional<int> Client::numberOfCurrentPlayers() {
 
   return out;
 }
+
+string Client::info() {
+  char buffer[1024];
+  snprintf(buffer, sizeof(buffer),
+		  "STEAM: App id: %u\n"
+		  "STEAM: User id: %llu\n"
+		  "STEAM: User name: %s\n",
+		  utils().appId(),
+		  (unsigned long long)user().id().ConvertToUint64(),
+		  friends().name().c_str());
+  return buffer;
+}
 }

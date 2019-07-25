@@ -25,6 +25,10 @@ string Friends::name(CSteamID friend_id) const {
   return FUNC(GetFriendPersonaName)(ptr, friend_id);
 }
 
+string Friends::name() const {
+  return FUNC(GetPersonaName)(ptr);
+}
+
 int Friends::avatar(CSteamID friend_id, int size) const {
   CHECK(size >= 0 && size <= 2);
   if (size == 0)

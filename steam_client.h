@@ -22,6 +22,8 @@ class Client {
   // TODO: mark callback-based functions?
   optional<int> numberOfCurrentPlayers();
 
+  string info();
+
   private:
   struct Impl;
   struct Ifaces;

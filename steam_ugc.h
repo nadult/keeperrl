@@ -3,8 +3,11 @@
 #include "steam_base.h"
 #include "steamworks/public/steam/isteamugc.h"
 
+RICH_ENUM(SteamQueryOrder, votes, date, subscriptions, playtime);
+
 namespace steam {
 
+using QueryOrder = SteamQueryOrder;
 using ItemId = PublishedFileId_t;
 
 struct DownloadInfo {
@@ -73,9 +76,10 @@ class UGC {
   InstallInfo installInfo(ItemId) const;
 
   using QueryId = int;
+  static constexpr int maxItemsPerPage = 50;
 
-  QueryId createQuery(const QueryInfo&, vector<ItemId>);
-  QueryId createQuery(const QueryInfo&, EUGCQuery, EUGCMatchingUGCType, unsigned app_id, int page_id);
+  QueryId createDetailsQuery(const QueryInfo&, vector<ItemId>);
+  QueryId createQuery(const QueryInfo&, QueryOrder, int pageId);
 
   void updateQueries();
   void finishQuery(QueryId);
@@ -86,9 +90,10 @@ class UGC {
   const QueryInfo& queryInfo(QueryId) const;
   QueryResults queryResults(QueryId) const;
   string queryError(QueryId) const;
-  QueryDetails queryDetails(QueryId, int index);
+  void queryDetails(QueryId, int index, QueryDetails&) const;
   string queryMetadata(QueryId, int index);
   vector<pair<string, string>> queryKeyValueTags(QueryId, int index);
+  vector<ItemId> queryIds(QueryId) const;
 
   void updateItem(const ItemInfo&);
   optional<UpdateItemInfo> tryUpdateItem();

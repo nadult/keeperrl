@@ -331,7 +331,7 @@ static int keeperMain(po::parser& commandLineFlags) {
   optional<steam::Client> steamClient;
   if (withSteam) {
 	  steamClient.emplace();
-	  INFO << "Steam ID: " << steam::User::instance().id().ConvertToUint64();
+	  INFO << "\n" << steamClient->info();
   }
 #endif
   
