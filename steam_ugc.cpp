@@ -44,6 +44,7 @@ struct UGC::Impl {
   optional<ItemInfo> createItemInfo;
   CallResult<CreateItemResult_t> createItem;
   CallResult<SubmitItemUpdateResult_t> updateItem;
+  QueryDetails queryDetails;
 };
 
 UGC::UGC(intptr_t ptr) : ptr(ptr) {
@@ -165,17 +166,14 @@ QueryResults UGC::queryResults(QueryId qid) const {
   auto& result = impl->queries[qid].call.result();
   return {(int)result.m_unNumResultsReturned, (int)result.m_unTotalMatchingResults};
 }
-  
-vector<ItemId> UGC::queryIds(QueryId qid) const {
+
+vector<ItemId> UGC::queryIds(QueryId qid) {
   vector<ItemId> out;
   auto results = queryResults(qid);
   INFO << "STEAM: results: " << results.count << " " << results.total;
   out.reserve(results.count);
-  QueryDetails details;
-  for(int n = 0; n < results.count; n++) {
-    queryDetails(qid, n, details);
-    out.emplace_back(details.m_nPublishedFileId);
-  }
+  for (int n = 0; n < results.count; n++)
+    out.emplace_back(queryDetails(qid, n).m_nPublishedFileId);
   return out;
 }
 
@@ -187,13 +185,14 @@ string UGC::queryError(QueryId qid) const {
   return "";
 }
 
-void UGC::queryDetails(QueryId qid, int index, QueryDetails &out) const{
+const QueryDetails& UGC::queryDetails(QueryId qid, int index) {
   CHECK(queryStatus(qid) == QStatus::completed);
   auto& query = impl->queries[qid];
 
-  auto result = FUNC(GetQueryUGCResult)(ptr, query.handle, index, &out);
+  auto result = FUNC(GetQueryUGCResult)(ptr, query.handle, index, &impl->queryDetails);
   CHECK(result);
   // TODO: properly handle errors
+  return impl->queryDetails;
 }
 
 string UGC::queryMetadata(QueryId qid, int index) {

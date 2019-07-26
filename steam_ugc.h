@@ -92,11 +92,14 @@ class UGC {
   const QueryInfo& queryInfo(QueryId) const;
   QueryResults queryResults(QueryId) const;
   string queryError(QueryId) const;
-  void queryDetails(QueryId, int index, QueryDetails&) const;
+
+  // Previous details will be overwritten
+  const QueryDetails& queryDetails(QueryId, int index);
   string queryMetadata(QueryId, int index);
   vector<pair<string, string>> queryKeyValueTags(QueryId, int index);
-  vector<ItemId> queryIds(QueryId) const;
+  vector<ItemId> queryIds(QueryId);
 
+  // Pass empty itemId to create new item
   void updateItem(const ItemInfo&);
   optional<UpdateItemInfo> tryUpdateItem();
   bool isUpdatingItem();

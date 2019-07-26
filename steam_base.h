@@ -12,6 +12,9 @@
 //
 // - Client interface is a singleton and holds all the other interfaces within itself
 //   user only has to create Client to get access to all the other interfaces.
+//
+// - Functions with 'retrieve' prefix involve a callback and might not return information
+//   on the first try (some require explicitly requesting information with other function).
 
 // TODO: namespace
 RICH_ENUM(QueryStatus, invalid, pending, completed, failed);

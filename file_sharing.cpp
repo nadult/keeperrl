@@ -427,9 +427,8 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
       auto results = ugc.queryResults(qid);
 
       vector<OnlineModInfo> out;
-      steam::QueryDetails details;
       for (int n = 0; n < results.count; n++) {
-        ugc.queryDetails(qid, n, details);
+        auto &details = ugc.queryDetails(qid, n);
         OnlineModInfo info;
         info.author = "TODO";
         info.description = shortDescription(details.m_rgchDescription);

@@ -3,7 +3,11 @@
 #include "steam_base.h"
 #include "steamworks/public/steam/isteamfriends.h"
 
+RICH_ENUM(SteamAvatarSize, small, medium, large);
+
 namespace steam {
+using AvatarSize = SteamAvatarSize;
+
 class Friends {
   STEAM_IFACE_DECL(Friends)
 
@@ -13,10 +17,14 @@ class Friends {
   int count(unsigned flags = k_EFriendFlagAll) const;
   vector<CSteamID> ids(unsigned flags = k_EFriendFlagAll) const;
 
-  string name(CSteamID friend_id) const;
+  void requestUserInfo(CSteamID, bool nameOnly);
+  optional<string> retrieveUserName(CSteamID);
+  optional<int> retrieveUserAvatar(CSteamID, AvatarSize);
+
   string name() const;
 
-  // TODO: name it differently to signify that it involves a callback?
-  int avatar(CSteamID friend_id, int size) const;
+  private:
+  struct Impl;
+  HeapAllocated<Impl> impl;
 };
 }
