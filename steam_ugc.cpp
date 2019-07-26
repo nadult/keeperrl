@@ -2,7 +2,6 @@
 #include "steam_ugc.h"
 #include "steam_utils.h"
 #include "steam_call_result.h"
-#include <unistd.h>
 
 #define FUNC(name, ...) SteamAPI_ISteamUGC_##name
 
@@ -144,19 +143,14 @@ void UGC::updateQueries() {
       query.call.update();
 }
 
-void UGC::waitForQueries(vector<QueryId> ids, int maxIters, int iterMsec) {
-  for (int i = 0; i < maxIters; i++) {
-    steam::runCallbacks();
-    updateQueries();
-
-    bool allFinished = true;
+void UGC::waitForQueries(vector<QueryId> ids, int maxIters, milliseconds iterMsec) {
+  auto allFinished = [&]() {
     for (auto qid : ids)
       if (queryStatus(qid) == QStatus::pending)
-        allFinished = false;
-    if (allFinished)
-      break;
-    usleep(iterMsec * 1000);
-  }
+        return false;
+    return true;
+  };
+  sleepUntil(allFinished, maxIters, iterMsec);
 }
 
 bool UGC::isQueryValid(QueryId qid) const {

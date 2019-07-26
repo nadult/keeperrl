@@ -45,6 +45,8 @@ class Utils;
 class User;
 
 bool initAPI();
+
+// Also updates UGC queries
 void runCallbacks();
 
 string formatError(int value, const pair<int, const char*>* strings, int count);
@@ -52,6 +54,16 @@ string errorText(EResult);
 string itemStateText(unsigned bits);
 
 vector<string> validTags();
+
+template <class CondFunc> void sleepUntil(CondFunc&& func, int maxIters, milliseconds iterMsec = milliseconds(50)) {
+  for (int i = 0; i < maxIters; i++) {
+    steam::runCallbacks();
+    if (func())
+      break;
+    if (i + 1 < maxIters)
+      sleep_for(iterMsec);
+  }
+}
 
 template <class T> class CallResult;
 }

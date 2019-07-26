@@ -1,5 +1,7 @@
 #include "steam_internal.h"
 #include "steam_base.h"
+#include "steam_ugc.h"
+#include "steam_client.h"
 
 namespace steam {
 
@@ -9,6 +11,8 @@ bool initAPI() {
 
 void runCallbacks() {
   SteamAPI_RunCallbacks();
+  if (Client::isAvailable())
+    UGC::instance().updateQueries();
 }
 
 string formatError(int value, const pair<int, const char*>* strings, int count) {
