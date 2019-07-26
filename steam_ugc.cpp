@@ -2,6 +2,7 @@
 #include "steam_ugc.h"
 #include "steam_utils.h"
 #include "steam_call_result.h"
+#include <unistd.h>
 
 #define FUNC(name, ...) SteamAPI_ISteamUGC_##name
 
@@ -10,18 +11,30 @@ namespace steam {
 using QStatus = QueryStatus;
 using QueryCall = CallResult<SteamUGCQueryCompleted_t>;
 
+static const EnumMap<ItemVisibility, ERemoteStoragePublishedFileVisibility> itemVisibilityMap = {
+    {ItemVisibility::public_, k_ERemoteStoragePublishedFileVisibilityPublic},
+    {ItemVisibility::friends, k_ERemoteStoragePublishedFileVisibilityFriendsOnly},
+    {ItemVisibility::private_, k_ERemoteStoragePublishedFileVisibilityPrivate}};
+
+static const EnumMap<QueryOrder, EUGCQuery> queryOrderMap{
+    {QueryOrder::votes, k_EUGCQuery_RankedByVote},
+    {QueryOrder::date, k_EUGCQuery_RankedByPublicationDate},
+    {QueryOrder::subscriptions, k_EUGCQuery_RankedByTotalUniqueSubscriptions},
+    {QueryOrder::playtime, k_EUGCQuery_RankedByTotalPlaytime}};
+
 struct UGC::QueryData {
   bool valid() const {
     return handle != k_UGCQueryHandleInvalid;
   }
 
   QHandle handle = k_UGCQueryHandleInvalid;
-  QueryInfo info;
+  optional<DetailsQueryInfo> detailsInfo;
+  optional<FindQueryInfo> findInfo;
   QueryCall call;
 };
 
 struct UGC::Impl {
-  QueryId allocQuery(QHandle handle, const QueryInfo& info, unsigned long long callId) {
+  QueryId allocQuery(QHandle handle, unsigned long long callId) {
     int qid = -1;
     for (int n = 0; n < queries.size(); n++)
       if (!queries[n].valid()) {
@@ -35,16 +48,14 @@ struct UGC::Impl {
 
     auto& query = queries[qid];
     query.handle = handle;
-    query.info = info;
     query.call = callId;
     return qid;
   }
 
   vector<QueryData> queries;
-  optional<ItemInfo> createItemInfo;
+  optional<UpdateItemInfo> createItemInfo;
   CallResult<CreateItemResult_t> createItem;
   CallResult<SubmitItemUpdateResult_t> updateItem;
-  QueryDetails queryDetails;
 };
 
 UGC::UGC(intptr_t ptr) : ptr(ptr) {
@@ -58,7 +69,6 @@ int UGC::numSubscribedItems() const {
 
 vector<ItemId> UGC::subscribedItems() const {
   vector<ItemId> out(numSubscribedItems());
-  INFO << "STEAM: num: " << out.size();
   int result = FUNC(GetSubscribedItems)(ptr, out.data(), out.size());
   out.resize(result);
   return out;
@@ -84,7 +94,13 @@ InstallInfo UGC::installInfo(ItemId id) const {
   return {size_on_disk, buffer, time_stamp};
 }
 
-void UGC::setupQuery(QHandle handle, const QueryInfo& info) {
+UGC::QueryId UGC::createDetailsQuery(const DetailsQueryInfo& info, vector<ItemId> items) {
+  CHECK(items.size() >= 1 && items.size() < maxItemsPerPage);
+
+  auto handle = FUNC(CreateQueryUGCDetailsRequest)(ptr, items.data(), items.size());
+  CHECK(handle != k_UGCQueryHandleInvalid);
+  // TODO: properly handle errors
+
 #define SET_VAR(var, func)                                                                                             \
   if (info.var)                                                                                                        \
     FUNC(SetReturn##func)(ptr, handle, true);
@@ -93,45 +109,33 @@ void UGC::setupQuery(QHandle handle, const QueryInfo& info) {
   SET_VAR(keyValueTags, KeyValueTags)
   SET_VAR(longDescription, LongDescription)
   SET_VAR(metadata, Metadata)
-  SET_VAR(onlyIds, OnlyIDs)
   SET_VAR(playtimeStats, PlaytimeStats)
-  SET_VAR(totalOnly, TotalOnly)
 #undef SET
-  if (!info.searchText.empty())
-    FUNC(SetSearchText)(ptr, handle, info.searchText.c_str());
-}
 
-UGC::QueryId UGC::createDetailsQuery(const QueryInfo& info, vector<ItemId> items) {
-  CHECK(items.size() >= 1 && items.size() < maxItemsPerPage);
-
-  auto handle = FUNC(CreateQueryUGCDetailsRequest)(ptr, items.data(), items.size());
-  CHECK(handle != k_UGCQueryHandleInvalid);
-  // TODO: properly handle errors
-
-  setupQuery(handle, info);
   auto callId = FUNC(SendQueryUGCRequest)(ptr, handle);
-  return impl->allocQuery(handle, info, callId);
+  auto qid = impl->allocQuery(handle, callId);
+  impl->queries[qid].detailsInfo = info;
+  return qid;
 }
 
-static const EnumMap<QueryOrder, EUGCQuery> queryOrderMap{
-    {QueryOrder::votes, k_EUGCQuery_RankedByVote},
-    {QueryOrder::date, k_EUGCQuery_RankedByPublicationDate},
-    {QueryOrder::subscriptions, k_EUGCQuery_RankedByTotalUniqueSubscriptions},
-    {QueryOrder::playtime, k_EUGCQuery_RankedByTotalPlaytime}};
-
-UGC::QueryId UGC::createQuery(const QueryInfo& info, QueryOrder order, int pageId) {
+UGC::QueryId UGC::createFindQuery(const FindQueryInfo& info, int pageId) {
   CHECK(pageId >= 1);
   auto appId = Utils::instance().appId();
 
   //auto match = k_EUGCMatchingUGCType_Items;
   auto match = k_EUGCMatchingUGCType_All;
-  auto handle = FUNC(CreateQueryAllUGCRequest)(ptr, queryOrderMap[order], match, appId, appId, pageId);
+  auto handle = FUNC(CreateQueryAllUGCRequest)(ptr, queryOrderMap[info.order], match, appId, appId, pageId);
   CHECK(handle != k_UGCQueryHandleInvalid);
   // TODO: properly handle errors
 
-  setupQuery(handle, info);
+  FUNC(SetReturnOnlyIDs)(ptr, handle, true);
+  if (!info.searchText.empty())
+    FUNC(SetSearchText)(ptr, handle, info.searchText.c_str());
+
   auto callId = FUNC(SendQueryUGCRequest)(ptr, handle);
-  return impl->allocQuery(handle, info, callId);
+  auto qid = impl->allocQuery(handle, callId);
+  impl->queries[qid].findInfo = info;
+  return qid;
 }
 
 void UGC::updateQueries() {
@@ -140,11 +144,19 @@ void UGC::updateQueries() {
       query.call.update();
 }
 
-void UGC::finishQuery(QueryId qid) {
-  CHECK(isQueryValid(qid));
-  auto& query = impl->queries[qid];
-  FUNC(ReleaseQueryUGCRequest)(ptr, query.handle);
-  query.handle = k_UGCQueryHandleInvalid;
+void UGC::waitForQueries(vector<QueryId> ids, int maxIters, int iterMsec) {
+  for (int i = 0; i < maxIters; i++) {
+    steam::runCallbacks();
+    updateQueries();
+
+    bool allFinished = true;
+    for (auto qid : ids)
+      if (queryStatus(qid) == QStatus::pending)
+        allFinished = false;
+    if (allFinished)
+      break;
+    usleep(iterMsec * 1000);
+  }
 }
 
 bool UGC::isQueryValid(QueryId qid) const {
@@ -156,85 +168,104 @@ QueryStatus UGC::queryStatus(QueryId qid) const {
   return impl->queries[qid].call.status;
 }
 
-const QueryInfo& UGC::queryInfo(QueryId qid) const {
-  CHECK(isQueryValid(qid));
-  return impl->queries[qid].info;
-}
-
-QueryResults UGC::queryResults(QueryId qid) const {
-  CHECK(queryStatus(qid) == QStatus::completed);
-  auto& result = impl->queries[qid].call.result();
-  return {(int)result.m_unNumResultsReturned, (int)result.m_unTotalMatchingResults};
-}
-
-vector<ItemId> UGC::queryIds(QueryId qid) {
-  vector<ItemId> out;
-  auto results = queryResults(qid);
-  INFO << "STEAM: results: " << results.count << " " << results.total;
-  out.reserve(results.count);
-  for (int n = 0; n < results.count; n++)
-    out.emplace_back(queryDetails(qid, n).m_nPublishedFileId);
-  return out;
-}
-
-string UGC::queryError(QueryId qid) const {
+string UGC::queryError(QueryId qid, string pendingError) const {
   CHECK(isQueryValid(qid));
   auto& call = impl->queries[qid].call;
   if (call.status == QStatus::failed)
     return call.failText();
+  if (call.status == QStatus::pending)
+    return pendingError;
   return "";
 }
 
-const QueryDetails& UGC::queryDetails(QueryId qid, int index) {
-  CHECK(queryStatus(qid) == QStatus::completed);
+vector<ItemInfo> UGC::finishDetailsQuery(QueryId qid) {
+  vector<ItemInfo> out;
+  CHECK(isQueryValid(qid) && impl->queries[qid].detailsInfo);
   auto& query = impl->queries[qid];
+  auto& info = impl->queries[qid].detailsInfo;
 
-  auto result = FUNC(GetQueryUGCResult)(ptr, query.handle, index, &impl->queryDetails);
-  CHECK(result);
-  // TODO: properly handle errors
-  return impl->queryDetails;
-}
+  if (query.call.status == QStatus::completed) {
+    int numResults = (int)query.call.result().m_unNumResultsReturned;
+    out.reserve(numResults);
 
-string UGC::queryMetadata(QueryId qid, int index) {
-  CHECK(queryStatus(qid) == QStatus::completed);
-  auto& query = impl->queries[qid];
-  CHECK(query.info.metadata);
+    SteamUGCDetails_t details;
+    for (int n = 0; n < numResults; n++) {
+      auto ret = FUNC(GetQueryUGCResult)(ptr, query.handle, n, &details);
+      CHECK(ret);
+      ItemInfo newItem;
+      newItem.id = details.m_nPublishedFileId;
+      newItem.ownerId = details.m_ulSteamIDOwner;
+      newItem.visibility = ItemVisibility::public_;
+      for (auto vis : ENUM_ALL(ItemVisibility))
+        if (itemVisibilityMap[vis] == details.m_eVisibility)
+          newItem.visibility = vis;
+      newItem.votesUp = details.m_unVotesUp;
+      newItem.votesDown = details.m_unVotesDown;
+      newItem.score = details.m_flScore;
+      newItem.title = details.m_rgchTitle;
+      newItem.description = details.m_rgchDescription;
+      newItem.tags = split(details.m_rgchTags, {','});
 
-  char buffer[4096];
-  auto result = FUNC(GetQueryUGCMetadata)(ptr, query.handle, index, buffer, sizeof(buffer) - 1);
-  buffer[sizeof(buffer) - 1] = 0;
-  CHECK(result);
-  return buffer;
-}
+      constexpr int bufSize = 4096;
+      if (info->keyValueTags) {
+        char buf1[bufSize + 1], buf2[bufSize + 1];
+        int count = (int)FUNC(GetQueryUGCNumKeyValueTags)(ptr, query.handle, n);
 
-vector<pair<string, string>> UGC::queryKeyValueTags(QueryId qid, int index) {
-  vector<pair<string, string>> out;
+        newItem.keyValues.resize(count);
+        for (int i = 0; i < count; i++) {
+          auto ret = FUNC(GetQueryUGCKeyValueTag)(ptr, query.handle, n, i, buf1, bufSize, buf2, bufSize);
+          CHECK(ret);
+          buf1[bufSize] = buf2[bufSize] = 0;
+          newItem.keyValues[n] = make_pair(buf1, buf2);
+        }
+      }
+      if (info->metadata) {
+        char buffer[bufSize + 1];
+        auto result = FUNC(GetQueryUGCMetadata)(ptr, query.handle, n, buffer, bufSize);
+        buffer[bufSize] = 0;
+        CHECK(result);
+        newItem.metadata = buffer;
+      }
 
-  CHECK(queryStatus(qid) == QStatus::completed);
-  auto& query = impl->queries[qid];
-  CHECK(query.info.keyValueTags);
-
-  char buf1[4096], buf2[4096];
-  auto count = FUNC(GetQueryUGCNumKeyValueTags)(ptr, query.handle, index);
-
-  out.resize(count);
-  for (unsigned n = 0; n < count; n++) {
-    auto result =
-        FUNC(GetQueryUGCKeyValueTag)(ptr, query.handle, index, n, buf1, sizeof(buf1) - 1, buf2, sizeof(buf2) - 1);
-    CHECK(result);
-    buf1[sizeof(buf1) - 1] = 0;
-    buf2[sizeof(buf2) - 1] = 0;
-    out[n] = make_pair(buf1, buf2);
+      out.emplace_back(newItem);
+    }
   }
+
+  FUNC(ReleaseQueryUGCRequest)(ptr, query.handle);
+  query.handle = k_UGCQueryHandleInvalid;
   return out;
 }
 
-static const EnumMap<ItemVisibility, ERemoteStoragePublishedFileVisibility> itemVisibilityMap = {
-    {ItemVisibility::public_, k_ERemoteStoragePublishedFileVisibilityPublic},
-    {ItemVisibility::friends, k_ERemoteStoragePublishedFileVisibilityFriendsOnly},
-    {ItemVisibility::private_, k_ERemoteStoragePublishedFileVisibilityPrivate}};
+vector<ItemId> UGC::finishFindQuery(QueryId qid) {
+  vector<ItemId> out;
+  CHECK(isQueryValid(qid) && impl->queries[qid].findInfo);
+  auto& query = impl->queries[qid];
 
-void UGC::updateItem(const ItemInfo& info) {
+  if (query.call.status == QStatus::completed) {
+    int numResults = (int)query.call.result().m_unNumResultsReturned;
+    out.reserve(numResults);
+
+    SteamUGCDetails_t details;
+    for (int n = 0; n < numResults; n++) {
+      auto ret = FUNC(GetQueryUGCResult)(ptr, query.handle, n, &details);
+      CHECK(ret);
+      out.emplace_back(details.m_nPublishedFileId);
+    }
+  }
+
+  FUNC(ReleaseQueryUGCRequest)(ptr, query.handle);
+  query.handle = k_UGCQueryHandleInvalid;
+  return out;
+}
+
+void UGC::finishQuery(QueryId qid) {
+  CHECK(isQueryValid(qid));
+  auto& query = impl->queries[qid];
+  FUNC(ReleaseQueryUGCRequest)(ptr, query.handle);
+  query.handle = k_UGCQueryHandleInvalid;
+}
+
+void UGC::updateItem(const UpdateItemInfo& info) {
   CHECK(!isUpdatingItem());
   auto appId = Utils::instance().appId();
 
@@ -247,8 +278,8 @@ void UGC::updateItem(const ItemInfo& info) {
       FUNC(SetItemDescription)(ptr, handle, info.description->c_str());
     if (info.folder)
       FUNC(SetItemContent)(ptr, handle, info.folder->c_str());
-    if (info.preview)
-      FUNC(SetItemPreview)(ptr, handle, info.preview->c_str());
+    if (info.previewFile)
+      FUNC(SetItemPreview)(ptr, handle, info.previewFile->c_str());
     if (info.visibility)
       FUNC(SetItemVisibility)(ptr, handle, itemVisibilityMap[*info.visibility]);
     if (info.tags) {
@@ -262,6 +293,8 @@ void UGC::updateItem(const ItemInfo& info) {
       FUNC(SetItemTags)(ptr, handle, &strings);
     }
 
+    // TODO: metadata & key-value tags
+
     impl->updateItem = FUNC(SubmitItemUpdate)(ptr, handle, nullptr);
   } else {
     impl->createItem = FUNC(CreateItem)(ptr, appId, k_EWorkshopFileTypeCommunity);
@@ -269,7 +302,7 @@ void UGC::updateItem(const ItemInfo& info) {
   }
 }
 
-optional<UpdateItemInfo> UGC::tryUpdateItem() {
+optional<UpdateItemResult> UGC::tryUpdateItem() {
   if (impl->createItem) {
     impl->createItem.update();
     if (impl->createItem.isCompleted()) {
@@ -281,7 +314,7 @@ optional<UpdateItemInfo> UGC::tryUpdateItem() {
         updateItem(*impl->createItemInfo);
         return none;
       } else {
-        return UpdateItemInfo{k_PublishedFileIdInvalid, out.m_eResult, true, false};
+        return UpdateItemResult{k_PublishedFileIdInvalid, out.m_eResult, true, false};
       }
     }
     return none;
@@ -292,7 +325,8 @@ optional<UpdateItemInfo> UGC::tryUpdateItem() {
     auto& out = impl->updateItem.result();
     impl->updateItem.clear();
     impl->createItemInfo = none;
-    return UpdateItemInfo{out.m_nPublishedFileId, out.m_eResult, false, out.m_bUserNeedsToAcceptWorkshopLegalAgreement};
+    return UpdateItemResult{out.m_nPublishedFileId, out.m_eResult, false,
+                            out.m_bUserNeedsToAcceptWorkshopLegalAgreement};
   }
   return none;
 }

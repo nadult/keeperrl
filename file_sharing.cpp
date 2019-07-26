@@ -355,8 +355,6 @@ static string shortDescription(string text, int max_lines = 3) {
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVersion) {
-  INFO << "STEAM: Retrieving mods...";
-
   if (!steam::Client::isAvailable()) {
     INFO << "STEAM: Client not available";
     return none;
@@ -370,35 +368,22 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   subscribedItems = ugc.subscribedItems();
 
   if (user.isLoggedOn()) { // Is this check necessary? Maybe we should try anyways?
-    int numRetries = 100;
+    steam::FindQueryInfo qinfo;
+    qinfo.order = SteamQueryOrder::playtime;
+    auto qid = ugc.createFindQuery(qinfo, 1);
 
-    steam::QueryInfo qinfo;
-    qinfo.onlyIds = true;
-    auto qid = ugc.createQuery(qinfo, SteamQueryOrder::playtime, 1);
-
-    for (int r = 0; r < numRetries; r++) {
-      steam::runCallbacks();
-      ugc.updateQueries();
-
-      // TODO: multiple pages
-
-      auto qstatus = ugc.queryStatus(qid);
-      if (qstatus == QueryStatus::completed) {
-        items = ugc.queryIds(qid);
-        INFO << "STEAM: completed query: " << items.size();
-        break;
-      } else if (qstatus == QueryStatus::failed) {
-        INFO << "STEAM: Error while querying for mods";
-        ugc.finishQuery(qid);
-      }
-
-      usleep(50 * 1000);
-    }
-
-    ugc.finishQuery(qid);
+    // TODO: multiple pages
     // TODO: handle errors
     // TODO: czy chcemy je jakoś filtrować? Czy na razie po prostu dajemy wszystkie / najpopularniejsze?
-    // But focus on subscribed mods as well ?
+
+    ugc.waitForQueries({qid}, 40); // Max 2 seconds
+
+    if (ugc.queryStatus(qid) == QueryStatus::completed) {
+      items = ugc.finishFindQuery(qid);
+    } else {
+      INFO << "STEAM: FindQuery failed: " << ugc.queryError(qid, "timeout (2 sec)");
+      ugc.finishQuery(qid);
+    }
   }
 
   items.append(subscribedItems);
@@ -411,54 +396,32 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
     return vector<FileSharing::OnlineModInfo>();
   }
 
-  steam::QueryInfo qinfo;
+  steam::DetailsQueryInfo qinfo;
   qinfo.longDescription = true;
-  qinfo.keyValueTags = true;
   auto qid = ugc.createDetailsQuery(qinfo, items);
-  int numRetries = 100;
-  // TODO: handle multiple pages
+  ugc.waitForQueries({qid}, 60); // Max 3 seconds
 
-  for (int r = 0; r < numRetries; r++) {
-    steam::runCallbacks();
-    ugc.updateQueries();
+  // TODO: niezalezne sciaganie info dla zasubskrybowanych i nie?
 
-    auto qstatus = ugc.queryStatus(qid);
-    if (qstatus == QueryStatus::completed) {
-      auto results = ugc.queryResults(qid);
-
-      vector<OnlineModInfo> out;
-      for (int n = 0; n < results.count; n++) {
-        auto &details = ugc.queryDetails(qid, n);
-        OnlineModInfo info;
-        info.author = "TODO";
-        info.description = shortDescription(details.m_rgchDescription);
-        info.name = details.m_rgchTitle;
-        info.numGames = 1337; // TODO
-        info.steamId = details.m_nPublishedFileId;
-        info.version = 31; // TODO
-        info.isSubscribed = subscribedItems.contains(info.steamId);
-        INFO << "STEAM: Mod: " << info.name;
-        INFO << "Desc: || " << info.description << "||";
-        out.emplace_back(info);
-      }
-      ugc.finishQuery(qid);
-      INFO << "STEAM: Retrieved " << out.size() << " mods";
-
-      // TODO: show subscribed items in front
-      return out;
-    } else if (qstatus != QueryStatus::pending) {
-      INFO << "STEAM: Error: " << ugc.queryError(qid);
-      ugc.finishQuery(qid);
-      return none;
+  vector<OnlineModInfo> out;
+  if (ugc.queryStatus(qid) == QueryStatus::completed) {
+    for (auto& info : ugc.finishDetailsQuery(qid)) {
+      OnlineModInfo mod;
+      mod.author = "TODO";
+      mod.description = shortDescription(info.description);
+      mod.name = info.title;
+      mod.numGames = 1337; // TODO: playtime stats
+      mod.steamId = info.id;
+      mod.version = 31; // TODO: version from tags
+      mod.isSubscribed = subscribedItems.contains(info.id);
+      out.emplace_back(mod);
     }
-
-    usleep(50 * 1000);
+  } else {
+    INFO << "STEAM: DetailsQuery failed: " << ugc.queryError(qid, "timeout (3 sec)");
+    ugc.finishQuery(qid);
   }
 
-  ugc.finishQuery(qid);
-  INFO << "STEAM: Error: timeout";
-
-  return none;
+  return out;
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getOnlineMods(int modVersion) {

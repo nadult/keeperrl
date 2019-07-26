@@ -23,21 +23,34 @@ struct InstallInfo {
   unsigned timeStamp;
 };
 
-struct QueryInfo {
-  string searchText;
+struct DetailsQueryInfo {
   unsigned playtimeStatsDays = 0;
-  // TODO: flags
   bool additionalPreviews = false;
   bool children = false;
   bool keyValueTags = false;
   bool longDescription = false;
   bool metadata = false;
-  bool onlyIds = false;
   bool playtimeStats = false;
-  bool totalOnly = false;
+};
+
+struct FindQueryInfo {
+  QueryOrder order;
+  string searchText;
 };
 
 struct UpdateItemInfo {
+  optional<ItemId> id;
+  optional<string> title;
+  optional<string> description;
+  optional<string> folder;
+  optional<string> previewFile;
+  optional<ItemVisibility> visibility;
+  optional<vector<string>> tags;
+  optional<vector<pair<string, string>>> keyValues;
+  optional<string> metadata;
+};
+
+struct UpdateItemResult {
   bool valid() const {
     return result == k_EResultOK;
   }
@@ -49,20 +62,20 @@ struct UpdateItemInfo {
 };
 
 struct ItemInfo {
-  optional<ItemId> id; // if empty, new item will be created
-  optional<string> title;
-  optional<string> description;
-  optional<string> folder;
-  optional<string> preview;
-  optional<ItemVisibility> visibility;
-  optional<vector<string>> tags;
-};
+  ItemId id;
+  CSteamID ownerId;
+  ItemVisibility visibility;
+  int votesUp, votesDown;
+  float score;
 
-struct QueryResults {
-  int count, total;
-};
+  string title;
+  string description;
+  vector<string> tags;
+  vector<pair<string, string>> keyValues;
+  string metadata;
 
-using QueryDetails = SteamUGCDetails_t;
+  // TODO: more flags
+};
 
 class UGC {
   STEAM_IFACE_DECL(UGC);
@@ -80,35 +93,30 @@ class UGC {
   using QueryId = int;
   static constexpr int maxItemsPerPage = 50;
 
-  QueryId createDetailsQuery(const QueryInfo&, vector<ItemId>);
-  QueryId createQuery(const QueryInfo&, QueryOrder, int pageId);
+  QueryId createDetailsQuery(const DetailsQueryInfo&, vector<ItemId>);
+  QueryId createFindQuery(const FindQueryInfo&, int pageId);
 
   void updateQueries();
-  void finishQuery(QueryId);
+  void waitForQueries(vector<QueryId>, int maxIters, int iterMsec = 50);
 
-  // TODO: how to report errors?
+  // TODO: how to report errors? use Expected<>
   bool isQueryValid(QueryId) const;
   QueryStatus queryStatus(QueryId) const;
-  const QueryInfo& queryInfo(QueryId) const;
-  QueryResults queryResults(QueryId) const;
-  string queryError(QueryId) const;
+  string queryError(QueryId, string pendingError = {}) const;
 
-  // Previous details will be overwritten
-  const QueryDetails& queryDetails(QueryId, int index);
-  string queryMetadata(QueryId, int index);
-  vector<pair<string, string>> queryKeyValueTags(QueryId, int index);
-  vector<ItemId> queryIds(QueryId);
+  // Results will only be returned if query is completed
+  vector<ItemInfo> finishDetailsQuery(QueryId);
+  vector<ItemId> finishFindQuery(QueryId);
+  void finishQuery(QueryId);
 
   // Pass empty itemId to create new item
-  void updateItem(const ItemInfo&);
-  optional<UpdateItemInfo> tryUpdateItem();
+  void updateItem(const UpdateItemInfo&);
+  optional<UpdateItemResult> tryUpdateItem();
   bool isUpdatingItem();
   void cancelUpdateItem();
 
   private:
   using QHandle = UGCQueryHandle_t;
-
-  void setupQuery(QHandle, const QueryInfo&);
 
   struct QueryData;
   struct Impl;
