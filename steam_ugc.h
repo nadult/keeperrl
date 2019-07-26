@@ -4,11 +4,13 @@
 #include "steamworks/public/steam/isteamugc.h"
 
 RICH_ENUM(SteamQueryOrder, votes, date, subscriptions, playtime);
+RICH_ENUM(SteamItemVisibility, public_, friends, private_);
 
 namespace steam {
 
 using QueryOrder = SteamQueryOrder;
 using ItemId = PublishedFileId_t;
+using ItemVisibility = SteamItemVisibility;
 
 struct DownloadInfo {
   unsigned long long bytesDownloaded;
@@ -52,8 +54,8 @@ struct ItemInfo {
   optional<string> description;
   optional<string> folder;
   optional<string> preview;
-  optional<int> version;
-  optional<ERemoteStoragePublishedFileVisibility> visibility;
+  optional<ItemVisibility> visibility;
+  optional<vector<string>> tags;
 };
 
 struct QueryResults {

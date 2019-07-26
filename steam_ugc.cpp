@@ -230,6 +230,11 @@ vector<pair<string, string>> UGC::queryKeyValueTags(QueryId qid, int index) {
   return out;
 }
 
+static const EnumMap<ItemVisibility, ERemoteStoragePublishedFileVisibility> itemVisibilityMap = {
+    {ItemVisibility::public_, k_ERemoteStoragePublishedFileVisibilityPublic},
+    {ItemVisibility::friends, k_ERemoteStoragePublishedFileVisibilityFriendsOnly},
+    {ItemVisibility::private_, k_ERemoteStoragePublishedFileVisibilityPrivate}};
+
 void UGC::updateItem(const ItemInfo& info) {
   CHECK(!isUpdatingItem());
   auto appId = Utils::instance().appId();
@@ -246,8 +251,17 @@ void UGC::updateItem(const ItemInfo& info) {
     if (info.preview)
       FUNC(SetItemPreview)(ptr, handle, info.preview->c_str());
     if (info.visibility)
-      FUNC(SetItemVisibility)(ptr, handle, *info.visibility);
-    // TODO: version
+      FUNC(SetItemVisibility)(ptr, handle, itemVisibilityMap[*info.visibility]);
+    if (info.tags) {
+      vector<const char*> buffer(info.tags->size());
+      for (auto& tag : *info.tags)
+        buffer.emplace_back(tag.c_str());
+
+      SteamParamStringArray_t strings;
+      strings.m_nNumStrings = info.tags->size();
+      strings.m_ppStrings = buffer.data();
+      FUNC(SetItemTags)(ptr, handle, &strings);
+    }
 
     impl->updateItem = FUNC(SubmitItemUpdate)(ptr, handle, nullptr);
   } else {

@@ -65,4 +65,8 @@ string itemStateText(unsigned bits) {
     }
   return out;
 }
+
+vector<string> validTags() {
+  return {"Alpha 28", "Alpha 29", "Mod", "Dungeon"};
+}
 }
