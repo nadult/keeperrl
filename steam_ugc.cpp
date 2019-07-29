@@ -108,8 +108,9 @@ UGC::QueryId UGC::createDetailsQuery(const ItemDetailsInfo& info, vector<ItemId>
   SET_VAR(keyValueTags, KeyValueTags)
   SET_VAR(longDescription, LongDescription)
   SET_VAR(metadata, Metadata)
-  SET_VAR(playtimeStats, PlaytimeStats)
 #undef SET
+  if (info.playtimeStatsDays > 0)
+    FUNC(SetReturnPlaytimeStats)(ptr, handle, info.playtimeStatsDays);
 
   auto callId = FUNC(SendQueryUGCRequest)(ptr, handle);
   auto qid = impl->allocQuery(handle, callId);
@@ -219,6 +220,28 @@ vector<ItemInfo> UGC::finishDetailsQuery(QueryId qid) {
         buffer[bufSize] = 0;
         CHECK(result);
         newItem.metadata = buffer;
+      }
+      if (info->playtimeStatsDays) {
+        ItemStats stats;
+        memset(&stats, 0, sizeof(stats));
+
+#define STAT(name, enum_name)                                                                                          \
+  FUNC(GetQueryUGCStatistic)(ptr, query.handle, n, k_EItemStatistic_##enum_name, &stats.name);
+        STAT(subscriptions, NumSubscriptions)
+        STAT(favorites, NumFavorites)
+        STAT(followers, NumFollowers)
+        STAT(uniqueSubscriptions, NumUniqueSubscriptions)
+        STAT(uniqueFavorites, NumUniqueFavorites)
+        STAT(uniqueFollowers, NumUniqueFollowers)
+        STAT(uniqueWebsiteViews, NumUniqueWebsiteViews)
+        STAT(reportScore, ReportScore)
+        STAT(secondsPlayed, NumSecondsPlayed)
+        STAT(playtimeSessions, NumPlaytimeSessions)
+        STAT(comments, NumComments)
+        STAT(secondsPlayedDuringTimePeriod, NumSecondsPlayedDuringTimePeriod)
+        STAT(playtimeSessionsDuringTimePeriod, NumPlaytimeSessionsDuringTimePeriod)
+#undef STAT
+        newItem.stats = stats;
       }
 
       out.emplace_back(newItem);

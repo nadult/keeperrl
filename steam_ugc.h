@@ -30,7 +30,6 @@ struct ItemDetailsInfo {
   bool keyValueTags = false;
   bool longDescription = false;
   bool metadata = false;
-  bool playtimeStats = false;
 };
 
 struct FindItemInfo {
@@ -64,6 +63,14 @@ struct UpdateItemResult {
   bool requireLegalAgreement;
 };
 
+struct ItemStats {
+  unsigned long long subscriptions, favorites, followers;
+  unsigned long long uniqueSubscriptions, uniqueFavorites, uniqueFollowers;
+  unsigned long long uniqueWebsiteViews, reportScore;
+  unsigned long long secondsPlayed, playtimeSessions, comments;
+  unsigned long long secondsPlayedDuringTimePeriod, playtimeSessionsDuringTimePeriod;
+};
+
 struct ItemInfo {
   ItemId id;
   CSteamID ownerId;
@@ -74,10 +81,10 @@ struct ItemInfo {
   string title;
   string description;
   vector<string> tags;
+  heap_optional<ItemStats> stats;
+
   vector<pair<string, string>> keyValues;
   string metadata;
-
-  // TODO: more flags
 };
 
 class UGC {
