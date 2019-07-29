@@ -259,7 +259,7 @@ void UGC::finishQuery(QueryId qid) {
   query.handle = k_UGCQueryHandleInvalid;
 }
 
-void UGC::updateItem(const UpdateItemInfo& info) {
+void UGC::beginUpdateItem(const UpdateItemInfo& info) {
   CHECK(!isUpdatingItem());
   auto appId = Utils::instance().appId();
 
@@ -305,10 +305,11 @@ optional<UpdateItemResult> UGC::tryUpdateItem() {
 
       if (out.m_eResult == k_EResultOK) {
         impl->createItemInfo->id = out.m_nPublishedFileId;
-        updateItem(*impl->createItemInfo);
+        beginUpdateItem(*impl->createItemInfo);
         return none;
       } else {
-        return UpdateItemResult{k_PublishedFileIdInvalid, out.m_eResult, true, false};
+        auto error = string("Error while creating item: ") + errorText(out.m_eResult);
+        return UpdateItemResult{none, error, false};
       }
     }
     return none;
@@ -319,8 +320,10 @@ optional<UpdateItemResult> UGC::tryUpdateItem() {
     auto& out = impl->updateItem.result();
     impl->updateItem.clear();
     impl->createItemInfo = none;
-    return UpdateItemResult{out.m_nPublishedFileId, out.m_eResult, false,
-                            out.m_bUserNeedsToAcceptWorkshopLegalAgreement};
+    optional<string> error;
+    if (out.m_eResult != k_EResultOK)
+      error = string("Error while updating item: ") + errorText(out.m_eResult);
+    return UpdateItemResult{out.m_nPublishedFileId, error, out.m_bUserNeedsToAcceptWorkshopLegalAgreement};
   }
   return none;
 }
@@ -331,13 +334,14 @@ bool UGC::isUpdatingItem() {
 
 void UGC::cancelUpdateItem() {
   auto& itemInfo = impl->createItemInfo;
-  if (itemInfo && itemInfo->id && impl->updateItem) {
-    // Update was cancelled, let's remove partially updated item
-    FUNC(DeleteItem)(ptr, *itemInfo->id);
-  }
-
+  if (itemInfo && itemInfo->id && impl->updateItem)
+    deleteItem(*itemInfo->id);
   impl->createItem.clear();
   itemInfo = none;
   impl->updateItem.clear();
+}
+
+void UGC::deleteItem(ItemId id) {
+  FUNC(DeleteItem)(ptr, id);
 }
 }

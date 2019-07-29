@@ -52,12 +52,11 @@ struct UpdateItemInfo {
 
 struct UpdateItemResult {
   bool valid() const {
-    return result == k_EResultOK;
+    return itemId && !error;
   }
 
-  ItemId itemId;
-  EResult result;
-  bool failedWhenCreating;
+  optional<ItemId> itemId;
+  optional<string> error;
   bool requireLegalAgreement;
 };
 
@@ -110,10 +109,13 @@ class UGC {
   void finishQuery(QueryId);
 
   // Pass empty itemId to create new item
-  void updateItem(const UpdateItemInfo&);
+  void beginUpdateItem(const UpdateItemInfo&);
   optional<UpdateItemResult> tryUpdateItem();
   bool isUpdatingItem();
+
+  // Will remove partially created item
   void cancelUpdateItem();
+  void deleteItem(ItemId);
 
   private:
   using QHandle = UGCQueryHandle_t;
