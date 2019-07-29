@@ -356,7 +356,7 @@ static string shortDescription(string text, int max_lines = 3) {
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVersion) {
   if (!steam::Client::isAvailable()) {
-    INFO << "STEAM: Client not available";
+    INFO << "STEAM: Client not available"; // TODO: report info to user
     return none;
   }
 
@@ -367,7 +367,8 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   vector<steam::ItemId> items, subscribedItems;
   subscribedItems = ugc.subscribedItems();
 
-  if (user.isLoggedOn()) { // Is this check necessary? Maybe we should try anyways?
+  // TODO: Is this check necessary? Maybe we should try anyways?
+  if (user.isLoggedOn()) {
     steam::FindItemInfo qinfo;
     qinfo.order = SteamFindOrder::playtime;
     auto qid = ugc.createFindQuery(qinfo, 1);
@@ -386,6 +387,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
     }
 
 #ifndef RELEASE
+    // TODO: remove it when finished basic testing
     items.append({1819019000, 1819019123, 1819019260, 1819019387});
 #endif
   }
@@ -400,12 +402,12 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
     return vector<FileSharing::OnlineModInfo>();
   }
 
-  steam::ItemDetailsInfo qinfo;
-  qinfo.longDescription = true;
-  auto qid = ugc.createDetailsQuery(qinfo, items);
+  steam::ItemDetailsInfo detailsInfo;
+  detailsInfo.longDescription = true;
+  detailsInfo.playtimeStatsDays = 9999;
+  detailsInfo.metadata = true;
+  auto qid = ugc.createDetailsQuery(detailsInfo, items);
   ugc.waitForQueries({qid}, 60); // Max 3 seconds
-
-  // TODO: niezalezne sciaganie info dla zasubskrybowanych i nie?
 
   vector<OnlineModInfo> out;
   if (ugc.queryStatus(qid) == QueryStatus::completed) {
@@ -414,9 +416,9 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
       mod.author = "TODO";
       mod.description = shortDescription(info.description);
       mod.name = info.title;
-      mod.numGames = 1337; // TODO: playtime stats
+      mod.numGames = info.stats->playtimeSessions;
       mod.steamId = info.id;
-      mod.version = 31; // TODO: version from tags
+      mod.version = steam::getItemVersion(info.metadata).value_or(0);
       mod.isSubscribed = subscribedItems.contains(info.id);
       out.emplace_back(mod);
     }

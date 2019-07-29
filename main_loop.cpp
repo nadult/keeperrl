@@ -466,19 +466,19 @@ void MainLoop::showCredits(const FilePath& path) {
   view->presentList("Credits", lines, false);
 }
 
-int MainLoop::getLocalVersion(const string& mod) {
+pair<int, unsigned long long> MainLoop::getLocalVersion(const string& mod) {
   ifstream in(dataFreePath.subdirectory(gameConfigSubdir).subdirectory(mod).file("version").getPath());
   int v = 0;
-  if (!!in) {
-    in >> v;
-  }
-  return v;
+  unsigned long long steamId = 0;
+  if (!!in)
+    in >> v >> steamId;
+  return {v, steamId};
 }
 
-void MainLoop::updateLocalVersion(const string& mod, int version) {
+void MainLoop::updateLocalVersion(const string& mod, int version, unsigned long long steamId) {
   ofstream out(dataFreePath.subdirectory(gameConfigSubdir).subdirectory(mod).file("version").getPath());
   if (!!out) {
-    out << version;
+    out << version << "\n" << steamId;
   }
 }
 
@@ -501,12 +501,17 @@ void MainLoop::showMods() {
     lines.emplace_back("Installed mods", ListElem::TITLE);
     for (auto& mod : modList) {
       auto title = mod;
+      auto localVer = getLocalVersion(mod);
       if (mod == currentMod)
         title += " [active]";
+      if (localVer.second)
+        title += " [steam]";
+
       auto upToDate = "up-to-date"_s;
       if (onlineMods)
         for (auto& onlineMod : *onlineMods)
-          if (onlineMod.name == mod && onlineMod.version > getLocalVersion(mod))
+          if (onlineMod.name == mod && (onlineMod.steamId == localVer.second || !localVer.second) &&
+              onlineMod.version > localVer.first)
             upToDate = "new version available";
       lines.emplace_back(ListElem(title, upToDate, ListElem::NORMAL));
     }
@@ -516,7 +521,7 @@ void MainLoop::showMods() {
       for (auto& elem : *onlineMods) {
         string suffix;
         if(elem.steamId)
-          suffix += " [STEAM]";
+          suffix += " [steam]";
         lines.emplace_back("Download \"" + elem.name + "\"" + suffix, ListElem::NORMAL);
         lines.emplace_back("Author: " + elem.author, ListElem::HELP_TEXT);
         lines.emplace_back(elem.description, ListElem::HELP_TEXT);
@@ -538,7 +543,7 @@ void MainLoop::showMods() {
               fileSharing->downloadSteamMod(*downloadMod.steamId, downloadMod.name, modDir, meter) :
               fileSharing->downloadMod(downloadMod.name, modDir, meter);
             if (!error)
-              updateLocalVersion(downloadMod.name, downloadMod.version);
+              updateLocalVersion(downloadMod.name, downloadMod.version, downloadMod.steamId.value_or(0));
           },
           [&] {
             cancelled = true;
@@ -974,4 +979,3 @@ bool MainLoop::eraseSave() {
 #endif
   return false;
 }
-

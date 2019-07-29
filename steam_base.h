@@ -57,6 +57,8 @@ vector<string> parseTagList(const string&);
 string formatTags(const vector<string>&);
 vector<string> validTags();
 
+optional<int> getItemVersion(const string& metadata);
+
 template <class CondFunc> void sleepUntil(CondFunc&& func, int maxIters, milliseconds iterMsec = milliseconds(50)) {
   for (int i = 0; i < maxIters; i++) {
     steam::runCallbacks();

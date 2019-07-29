@@ -131,6 +131,9 @@ class UGC {
   void cancelUpdateItem();
   void deleteItem(ItemId);
 
+  void startPlaytimeTracking(const vector<ItemId>&);
+  void stopPlaytimeTracking(const vector<ItemId>&);
+
   private:
   using QHandle = UGCQueryHandle_t;
 

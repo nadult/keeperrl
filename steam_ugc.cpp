@@ -336,7 +336,15 @@ void UGC::beginUpdateItem(const UpdateItemInfo& info) {
       CHECK(ret);
     }
 
-    // TODO: metadata & key-value tags
+    if (info.keyValues)
+      for (auto& pair : *info.keyValues) {
+        auto ret = FUNC(AddItemKeyValueTag)(ptr, handle, pair.first.c_str(), pair.second.c_str());
+        CHECK(ret);
+      }
+    if (info.metadata) {
+      auto ret = FUNC(SetItemMetadata)(ptr, handle, info.metadata->c_str());
+      CHECK(ret);
+    }
 
     impl->updateItem = FUNC(SubmitItemUpdate)(ptr, handle, nullptr);
   } else {
@@ -392,5 +400,13 @@ void UGC::cancelUpdateItem() {
 
 void UGC::deleteItem(ItemId id) {
   FUNC(DeleteItem)(ptr, id);
+}
+
+void UGC::startPlaytimeTracking(const vector<ItemId>& ids) {
+  FUNC(StartPlaytimeTracking)(ptr, (ItemId*)ids.data(), (unsigned)ids.size());
+}
+
+void UGC::stopPlaytimeTracking(const vector<ItemId>& ids) {
+  FUNC(StopPlaytimeTracking)(ptr, (ItemId*)ids.data(), (unsigned)ids.size());
 }
 }

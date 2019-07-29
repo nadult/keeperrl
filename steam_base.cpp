@@ -84,4 +84,9 @@ string formatTags(const vector<string>& tags) {
 vector<string> validTags() {
   return {"Alpha_28", "Alpha_29", "Mod", "Dungeon"};
 }
+
+optional<int> getItemVersion(const string& metadata) {
+  auto val = atoi(metadata.c_str());
+  return val > 0 ? val : optional<int>();
+}
 }

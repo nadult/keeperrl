@@ -70,4 +70,3 @@ class FileSharing {
   string installId;
   atomic<bool> wasCancelled;
 };
-
