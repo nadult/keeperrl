@@ -97,7 +97,7 @@ class UGC {
 
   // TODO: return expected everywhere where something may fail ?
   // maybe just return optional?
-  uint32_t state(ItemId) const;
+  uint32_t itemState(ItemId) const;
   optional<DownloadInfo> downloadInfo(ItemId) const;
   optional<InstallInfo> installInfo(ItemId) const;
   bool downloadItem(ItemId, bool highPriority);

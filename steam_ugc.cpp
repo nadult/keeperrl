@@ -61,7 +61,7 @@ struct UGC::Impl {
   vector<pair<ItemId, EResult>> downloadedItems;
 };
 
-void UGC::Impl::onDownloadFinished(DownloadItemResult_t *result) {
+void UGC::Impl::onDownloadFinished(DownloadItemResult_t* result) {
   downloadedItems.emplace_back(result->m_nPublishedFileId, result->m_eResult);
 }
 
@@ -84,7 +84,7 @@ vector<ItemId> UGC::subscribedItems() const {
   return out;
 }
 
-uint32_t UGC::state(ItemId id) const {
+uint32_t UGC::itemState(ItemId id) const {
   return FUNC(GetItemState)(ptr, id);
 }
 

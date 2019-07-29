@@ -384,6 +384,10 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
       INFO << "STEAM: FindQuery failed: " << ugc.queryError(qid, "timeout (2 sec)");
       ugc.finishQuery(qid);
     }
+
+#ifndef RELEASE
+    items.append({1819019000, 1819019123, 1819019260, 1819019387});
+#endif
   }
 
   items.append(subscribedItems);
@@ -440,12 +444,23 @@ optional<string> FileSharing::downloadSteamMod(unsigned long long id, const stri
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
 
-  auto state = ugc.state(id);
-  bool isInstalled = state & k_EItemStateInstalled;
+  auto state = ugc.itemState(id);
 
-  if (!isInstalled) {
-    // TODO: download & install mod
-    return string("Mod not installed!");
+  if (!(state & k_EItemStateInstalled)) {
+    if (!ugc.downloadItem(id, true))
+      return string("Error while downloading mod.");
+
+    // TODO: meter support
+    while (!consumeCancelled()) {
+      steam::runCallbacks();
+      if (!ugc.getDownloadedItems().empty())
+        break;
+      sleep_for(milliseconds(50));
+    }
+
+    state = ugc.itemState(id);
+    if (!(state & k_EItemStateInstalled))
+      return string("Error while downloading mod.");
   }
 
   auto instInfo = ugc.installInfo(id);
