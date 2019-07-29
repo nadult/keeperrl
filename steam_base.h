@@ -53,6 +53,8 @@ string formatError(int value, const pair<int, const char*>* strings, int count);
 string errorText(EResult);
 string itemStateText(unsigned bits);
 
+vector<string> parseTagList(const string&);
+string formatTags(const vector<string>&);
 vector<string> validTags();
 
 template <class CondFunc> void sleepUntil(CondFunc&& func, int maxIters, milliseconds iterMsec = milliseconds(50)) {

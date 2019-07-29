@@ -70,7 +70,18 @@ string itemStateText(unsigned bits) {
   return out;
 }
 
+vector<string> parseTagList(const string& str) {
+  return split(str, {','});
+}
+
+string formatTags(const vector<string>& tags) {
+  string out;
+  for (auto& tag : tags)
+    out += (out.empty() ? "" : ",") + tag;
+  return out;
+}
+
 vector<string> validTags() {
-  return {"Alpha 28", "Alpha 29", "Mod", "Dungeon"};
+  return {"Alpha_28", "Alpha_29", "Mod", "Dungeon"};
 }
 }

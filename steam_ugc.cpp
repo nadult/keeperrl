@@ -199,7 +199,7 @@ vector<ItemInfo> UGC::finishDetailsQuery(QueryId qid) {
       newItem.score = details.m_flScore;
       newItem.title = details.m_rgchTitle;
       newItem.description = details.m_rgchDescription;
-      newItem.tags = split(details.m_rgchTags, {','});
+      newItem.tags = parseTagList(details.m_rgchTags);
 
       constexpr int bufSize = 4096;
       if (info->keyValueTags) {
@@ -300,14 +300,15 @@ void UGC::beginUpdateItem(const UpdateItemInfo& info) {
     if (info.visibility)
       FUNC(SetItemVisibility)(ptr, handle, itemVisibilityMap[*info.visibility]);
     if (info.tags) {
-      vector<const char*> buffer(info.tags->size());
-      for (auto& tag : *info.tags)
+      vector<const char*> buffer;
+      for (auto& tag : parseTagList(*info.tags))
         buffer.emplace_back(tag.c_str());
 
       SteamParamStringArray_t strings;
-      strings.m_nNumStrings = info.tags->size();
+      strings.m_nNumStrings = buffer.size();
       strings.m_ppStrings = buffer.data();
-      FUNC(SetItemTags)(ptr, handle, &strings);
+      auto ret = FUNC(SetItemTags)(ptr, handle, &strings);
+      CHECK(ret);
     }
 
     // TODO: metadata & key-value tags
