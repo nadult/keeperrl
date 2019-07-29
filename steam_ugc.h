@@ -75,6 +75,7 @@ struct ItemInfo {
   ItemId id;
   CSteamID ownerId;
   ItemVisibility visibility;
+  std::time_t creationTime, updateTime;
   int votesUp, votesDown;
   float score;
 

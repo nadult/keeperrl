@@ -200,6 +200,8 @@ vector<ItemInfo> UGC::finishDetailsQuery(QueryId qid) {
       newItem.title = details.m_rgchTitle;
       newItem.description = details.m_rgchDescription;
       newItem.tags = parseTagList(details.m_rgchTags);
+      newItem.creationTime = (time_t)details.m_rtimeCreated;
+      newItem.updateTime = (time_t)details.m_rtimeUpdated;
 
       constexpr int bufSize = 4096;
       if (info->keyValueTags) {
