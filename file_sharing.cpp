@@ -368,8 +368,8 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   subscribedItems = ugc.subscribedItems();
 
   if (user.isLoggedOn()) { // Is this check necessary? Maybe we should try anyways?
-    steam::FindQueryInfo qinfo;
-    qinfo.order = SteamQueryOrder::playtime;
+    steam::FindItemInfo qinfo;
+    qinfo.order = SteamFindOrder::playtime;
     auto qid = ugc.createFindQuery(qinfo, 1);
 
     // TODO: multiple pages
@@ -396,7 +396,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
     return vector<FileSharing::OnlineModInfo>();
   }
 
-  steam::DetailsQueryInfo qinfo;
+  steam::ItemDetailsInfo qinfo;
   qinfo.longDescription = true;
   auto qid = ugc.createDetailsQuery(qinfo, items);
   ugc.waitForQueries({qid}, 60); // Max 3 seconds

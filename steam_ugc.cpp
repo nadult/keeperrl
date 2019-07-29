@@ -15,11 +15,11 @@ static const EnumMap<ItemVisibility, ERemoteStoragePublishedFileVisibility> item
     {ItemVisibility::friends, k_ERemoteStoragePublishedFileVisibilityFriendsOnly},
     {ItemVisibility::private_, k_ERemoteStoragePublishedFileVisibilityPrivate}};
 
-static const EnumMap<QueryOrder, EUGCQuery> queryOrderMap{
-    {QueryOrder::votes, k_EUGCQuery_RankedByVote},
-    {QueryOrder::date, k_EUGCQuery_RankedByPublicationDate},
-    {QueryOrder::subscriptions, k_EUGCQuery_RankedByTotalUniqueSubscriptions},
-    {QueryOrder::playtime, k_EUGCQuery_RankedByTotalPlaytime}};
+static const EnumMap<FindOrder, EUGCQuery> findOrderMap{
+    {FindOrder::votes, k_EUGCQuery_RankedByVote},
+    {FindOrder::date, k_EUGCQuery_RankedByPublicationDate},
+    {FindOrder::subscriptions, k_EUGCQuery_RankedByTotalUniqueSubscriptions},
+    {FindOrder::playtime, k_EUGCQuery_RankedByTotalPlaytime}};
 
 struct UGC::QueryData {
   bool valid() const {
@@ -27,8 +27,8 @@ struct UGC::QueryData {
   }
 
   QHandle handle = k_UGCQueryHandleInvalid;
-  optional<DetailsQueryInfo> detailsInfo;
-  optional<FindQueryInfo> findInfo;
+  optional<ItemDetailsInfo> detailsInfo;
+  optional<FindItemInfo> findInfo;
   QueryCall call;
 };
 
@@ -93,8 +93,8 @@ InstallInfo UGC::installInfo(ItemId id) const {
   return {size_on_disk, buffer, time_stamp};
 }
 
-UGC::QueryId UGC::createDetailsQuery(const DetailsQueryInfo& info, vector<ItemId> items) {
-  CHECK(items.size() >= 1 && items.size() < maxItemsPerPage);
+UGC::QueryId UGC::createDetailsQuery(const ItemDetailsInfo& info, vector<ItemId> items) {
+  CHECK(items.size() >= 1 && items.size() <= maxItemsPerPage);
 
   auto handle = FUNC(CreateQueryUGCDetailsRequest)(ptr, items.data(), items.size());
   CHECK(handle != k_UGCQueryHandleInvalid);
@@ -117,13 +117,13 @@ UGC::QueryId UGC::createDetailsQuery(const DetailsQueryInfo& info, vector<ItemId
   return qid;
 }
 
-UGC::QueryId UGC::createFindQuery(const FindQueryInfo& info, int pageId) {
+UGC::QueryId UGC::createFindQuery(const FindItemInfo& info, int pageId) {
   CHECK(pageId >= 1);
   auto appId = Utils::instance().appId();
 
   //auto match = k_EUGCMatchingUGCType_Items;
   auto match = k_EUGCMatchingUGCType_All;
-  auto handle = FUNC(CreateQueryAllUGCRequest)(ptr, queryOrderMap[info.order], match, appId, appId, pageId);
+  auto handle = FUNC(CreateQueryAllUGCRequest)(ptr, findOrderMap[info.order], match, appId, appId, pageId);
   CHECK(handle != k_UGCQueryHandleInvalid);
   // TODO: properly handle errors
 

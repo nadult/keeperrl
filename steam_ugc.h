@@ -3,12 +3,12 @@
 #include "steam_base.h"
 #include "steamworks/public/steam/isteamugc.h"
 
-RICH_ENUM(SteamQueryOrder, votes, date, subscriptions, playtime);
+RICH_ENUM(SteamFindOrder, votes, date, subscriptions, playtime);
 RICH_ENUM(SteamItemVisibility, public_, friends, private_);
 
 namespace steam {
 
-using QueryOrder = SteamQueryOrder;
+using FindOrder = SteamFindOrder;
 using ItemId = PublishedFileId_t;
 using ItemVisibility = SteamItemVisibility;
 
@@ -23,7 +23,7 @@ struct InstallInfo {
   unsigned timeStamp;
 };
 
-struct DetailsQueryInfo {
+struct ItemDetailsInfo {
   unsigned playtimeStatsDays = 0;
   bool additionalPreviews = false;
   bool children = false;
@@ -33,9 +33,13 @@ struct DetailsQueryInfo {
   bool playtimeStats = false;
 };
 
-struct FindQueryInfo {
-  QueryOrder order;
+struct FindItemInfo {
+  FindOrder order;
   string searchText;
+  string tags;
+  bool anyTag = false;
+
+  optional<int> maxItemCount;
 };
 
 struct UpdateItemInfo {
@@ -92,8 +96,8 @@ class UGC {
   using QueryId = int;
   static constexpr int maxItemsPerPage = 50;
 
-  QueryId createDetailsQuery(const DetailsQueryInfo&, vector<ItemId>);
-  QueryId createFindQuery(const FindQueryInfo&, int pageId);
+  QueryId createDetailsQuery(const ItemDetailsInfo&, vector<ItemId>);
+  QueryId createFindQuery(const FindItemInfo&, int pageId);
 
   void updateQueries();
   void waitForQueries(vector<QueryId>, int maxIters, milliseconds iterMsec = milliseconds(50));
