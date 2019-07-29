@@ -55,12 +55,23 @@ struct UGC::Impl {
   optional<UpdateItemInfo> createItemInfo;
   CallResult<CreateItemResult_t> createItem;
   CallResult<SubmitItemUpdateResult_t> updateItem;
+
+  // TODO: is it ok on windows?
+  STEAM_CALLBACK_MANUAL(UGC::Impl, onDownloadFinished, DownloadItemResult_t, downloadFinished);
+  vector<pair<ItemId, EResult>> downloadedItems;
 };
+
+void UGC::Impl::onDownloadFinished(DownloadItemResult_t *result) {
+  downloadedItems.emplace_back(result->m_nPublishedFileId, result->m_eResult);
+}
 
 UGC::UGC(intptr_t ptr) : ptr(ptr) {
   static_assert(maxItemsPerPage <= (int)kNumUGCResultsPerPage, "");
+  impl->downloadFinished.Register(impl.get(), &Impl::onDownloadFinished);
 }
-UGC::~UGC() = default;
+UGC::~UGC() {
+  impl->downloadFinished.Unregister();
+}
 
 int UGC::numSubscribedItems() const {
   return (int)FUNC(GetNumSubscribedItems)(ptr);
@@ -77,20 +88,31 @@ uint32_t UGC::state(ItemId id) const {
   return FUNC(GetItemState)(ptr, id);
 }
 
-DownloadInfo UGC::downloadInfo(ItemId id) const {
+optional<DownloadInfo> UGC::downloadInfo(ItemId id) const {
   uint64 downloaded = 0, total = 0;
-  auto result = FUNC(GetItemDownloadInfo)(ptr, id, &downloaded, &total);
-  // TODO: handle result
-  return {downloaded, total};
+  if (!FUNC(GetItemDownloadInfo)(ptr, id, &downloaded, &total))
+    return none;
+  return DownloadInfo{downloaded, total};
 }
 
-InstallInfo UGC::installInfo(ItemId id) const {
+optional<InstallInfo> UGC::installInfo(ItemId id) const {
   uint64 size_on_disk;
   uint32 time_stamp;
-  char buffer[4096];
-  auto result = FUNC(GetItemInstallInfo)(ptr, id, &size_on_disk, buffer, sizeof(buffer) - 1, &time_stamp);
+  char buffer[1024];
+  if (!FUNC(GetItemInstallInfo)(ptr, id, &size_on_disk, buffer, sizeof(buffer) - 1, &time_stamp))
+    return none;
   buffer[sizeof(buffer) - 1] = 0;
-  return {size_on_disk, buffer, time_stamp};
+  return InstallInfo{size_on_disk, buffer, time_stamp};
+}
+
+bool UGC::downloadItem(ItemId id, bool highPriority) {
+  return FUNC(DownloadItem)(ptr, id, highPriority);
+}
+
+vector<pair<ItemId, EResult>> UGC::getDownloadedItems() {
+  auto out = std::move(impl->downloadedItems);
+  impl->downloadedItems.clear();
+  return out;
 }
 
 UGC::QueryId UGC::createDetailsQuery(const ItemDetailsInfo& info, vector<ItemId> items) {
@@ -202,6 +224,7 @@ vector<ItemInfo> UGC::finishDetailsQuery(QueryId qid) {
       newItem.tags = parseTagList(details.m_rgchTags);
       newItem.creationTime = (time_t)details.m_rtimeCreated;
       newItem.updateTime = (time_t)details.m_rtimeUpdated;
+      newItem.isValid = details.m_eResult == k_EResultOK; // TODO: generate optional error string?
 
       constexpr int bufSize = 4096;
       if (info->keyValueTags) {

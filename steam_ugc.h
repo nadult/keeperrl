@@ -74,10 +74,11 @@ struct ItemStats {
 struct ItemInfo {
   ItemId id;
   CSteamID ownerId;
-  ItemVisibility visibility;
   std::time_t creationTime, updateTime;
   int votesUp, votesDown;
   float score;
+  ItemVisibility visibility;
+  bool isValid;
 
   string title;
   string description;
@@ -92,14 +93,15 @@ class UGC {
   STEAM_IFACE_DECL(UGC);
 
   int numSubscribedItems() const;
-
   vector<ItemId> subscribedItems() const;
 
   // TODO: return expected everywhere where something may fail ?
   // maybe just return optional?
   uint32_t state(ItemId) const;
-  DownloadInfo downloadInfo(ItemId) const;
-  InstallInfo installInfo(ItemId) const;
+  optional<DownloadInfo> downloadInfo(ItemId) const;
+  optional<InstallInfo> installInfo(ItemId) const;
+  bool downloadItem(ItemId, bool highPriority);
+  vector<pair<ItemId, EResult>> getDownloadedItems();
 
   using QueryId = int;
   static constexpr int maxItemsPerPage = 50;

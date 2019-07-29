@@ -19,7 +19,7 @@ struct Friends::Impl {
   }
 
   // TODO: is it ok on windows?
-  STEAM_CALLBACK_MANUAL(Friends::Impl, onPersonaStateChange, PersonaStateChange_t, m_personaStateChange);
+  STEAM_CALLBACK_MANUAL(Friends::Impl, onPersonaStateChange, PersonaStateChange_t, personaStateChange);
 };
 
 void Friends::Impl::onPersonaStateChange(PersonaStateChange_t* result) {
@@ -27,8 +27,11 @@ void Friends::Impl::onPersonaStateChange(PersonaStateChange_t* result) {
 
 Friends::Friends(intptr_t ptr) : ptr(ptr) {
   impl->ptr = ptr;
+  impl->personaStateChange.Register(impl.get(), &Impl::onPersonaStateChange);
 }
-Friends::~Friends() = default;
+Friends::~Friends() {
+  impl->personaStateChange.Unregister();
+}
 
 int Friends::count(unsigned flags) const {
   return FUNC(GetFriendCount)(ptr, flags);

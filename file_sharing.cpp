@@ -449,8 +449,11 @@ optional<string> FileSharing::downloadSteamMod(unsigned long long id, const stri
   }
 
   auto instInfo = ugc.installInfo(id);
+  if (!instInfo)
+    return string("Error while retrieving installation info");
+
   DirectoryPath subDir(string(modsDir.getPath()) + "/" + name);
-  return DirectoryPath::copyFiles(DirectoryPath(instInfo.folder), subDir, true);
+  return DirectoryPath::copyFiles(DirectoryPath(instInfo->folder), subDir, true);
 }
 
 optional<string> FileSharing::downloadMod(const string& modName, const DirectoryPath& modsDir, ProgressMeter& meter) {
