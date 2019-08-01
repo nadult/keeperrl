@@ -1,3 +1,14 @@
+# Steam SDK has to be present in extern/steamworks/
+# (at least public/ and redistributable_bin/ subdirs).
+#
+# It can be downloaded from:
+# https://partner.steamgames.com/doc/sdk
+#
+# After extracting files run fix_steamworks.sh script.
+
+# To run keeper with steam support, don't forget to copy
+# appropriate .so / .dll file where the game executable is.
+
 ifndef MACHINE
 MACHINE=$(shell $(GCC) -dumpmachine)
 endif
@@ -18,3 +29,5 @@ else ifeq ($(MACHINE), i686-w64-mingw32)
 #TODO: else handle error
 endif
 
+CFLAGS += -DUSE_STEAMWORKS
+STEAM_LIBS=-L $(STEAM_LIB_DIR) -l $(STEAM_LIB_NAME)

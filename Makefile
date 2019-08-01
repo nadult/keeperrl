@@ -72,19 +72,8 @@ ifdef TEXT_SERIALIZATION
 CFLAGS += -DTEXT_SERIALIZATION
 endif
 
-# Steam SDK has to be present in extern/steamworks/
-# (at least public/ and redistributable_bin/ subdirs)
-# after copying run fix_headers.sh script from steam_tools:
-# https://github.com/nadult/keeperrl_steam_tools
-# It should be placed on the same level as keeperrl/ folder
-#
-# To run keeper with steam support, don't forget to copy
-# appropriate .so file where the game executable is.
 ifdef STEAMWORKS
 include Makefile-steam
-CFLAGS += -DUSE_STEAMWORKS
-STEAM_LIBS=-L $(STEAM_LIB_DIR) -l $(STEAM_LIB_NAME)
-
 endif
 
 ifdef OPT
