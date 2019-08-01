@@ -37,38 +37,39 @@ int Friends::count(unsigned flags) const {
   return FUNC(GetFriendCount)(ptr, flags);
 }
 
-vector<CSteamID> Friends::ids(unsigned flags) const {
+vector<UserId> Friends::ids(unsigned flags) const {
   int count = this->count(flags);
-  vector<CSteamID> out;
+  vector<UserId> out;
   out.reserve(count);
   for (int n = 0; n < count; n++)
-    out.emplace_back(CSteamID(FUNC(GetFriendByIndex)(ptr, n, flags)));
+    out.emplace_back(UserId(FUNC(GetFriendByIndex)(ptr, n, flags)));
   return out;
 }
 
-void Friends::requestUserInfo(CSteamID userId, bool nameOnly) {
-  FUNC(RequestUserInformation)(ptr, userId, nameOnly);
+void Friends::requestUserInfo(UserId userId, bool nameOnly) {
+  FUNC(RequestUserInformation)(ptr, CSteamID(userId), nameOnly);
 }
 
-optional<string> Friends::retrieveUserName(CSteamID userID) {
-  auto it = impl->userNames.find(userID);
+optional<string> Friends::retrieveUserName(UserId userId) {
+  auto it = impl->userNames.find(CSteamID(userId));
   if (it != impl->userNames.end())
     return it->second;
-  return impl->updateUserName(userID);
+  return impl->updateUserName(CSteamID(userId));
 }
 
 string Friends::name() const {
   return FUNC(GetPersonaName)(ptr);
 }
 
-optional<int> Friends::retrieveUserAvatar(CSteamID friend_id, AvatarSize size) {
+optional<int> Friends::retrieveUserAvatar(UserId userId, AvatarSize size) {
   int value = 0;
+  CSteamID steamId(userId);
   if (size == AvatarSize::small)
-    value = FUNC(GetSmallFriendAvatar)(ptr, friend_id);
+    value = FUNC(GetSmallFriendAvatar)(ptr, steamId);
   else if (size == AvatarSize::medium)
-    value = FUNC(GetMediumFriendAvatar)(ptr, friend_id);
+    value = FUNC(GetMediumFriendAvatar)(ptr, steamId);
   else if (size == AvatarSize::large)
-    value = FUNC(GetLargeFriendAvatar)(ptr, friend_id);
+    value = FUNC(GetLargeFriendAvatar)(ptr, steamId);
   return value ? value : optional<int>();
 }
 }

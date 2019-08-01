@@ -118,7 +118,7 @@ string Client::info() {
 		  "STEAM: User id: %llu\n"
 		  "STEAM: User name: %s\n",
 		  utils().appId(),
-		  (unsigned long long)user().id().ConvertToUint64(),
+		  user().id().value,
 		  friends().name().c_str());
   return buffer;
 }

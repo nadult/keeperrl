@@ -2,8 +2,12 @@
 #include "steam_base.h"
 #include "steam_ugc.h"
 #include "steam_client.h"
+#include "steamworks/public/steam/steamclientpublic.h"
 
 namespace steam {
+  
+static_assert(sizeof(uint64) == 8, "Invalid size");
+static_assert(sizeof(int64) == 8, "Invalid size");
 
 bool initAPI() {
   return SteamAPI_Init();

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "steam_base.h"
+
+// TODO: remove it, EItemState
 #include "steamworks/public/steam/isteamugc.h"
 
 RICH_ENUM(SteamFindOrder, votes, date, subscriptions, playtime);
@@ -9,7 +11,6 @@ RICH_ENUM(SteamItemVisibility, public_, friends, private_);
 namespace steam {
 
 using FindOrder = SteamFindOrder;
-using ItemId = PublishedFileId_t;
 using ItemVisibility = SteamItemVisibility;
 
 struct DownloadInfo {
@@ -72,8 +73,10 @@ struct ItemStats {
 };
 
 struct ItemInfo {
+  ItemInfo(ItemId iid, UserId oid) :id(iid), ownerId(oid) {}
+
   ItemId id;
-  CSteamID ownerId;
+  UserId ownerId;
   std::time_t creationTime, updateTime;
   int votesUp, votesDown;
   float score;
@@ -101,7 +104,7 @@ class UGC {
   optional<DownloadInfo> downloadInfo(ItemId) const;
   optional<InstallInfo> installInfo(ItemId) const;
   bool downloadItem(ItemId, bool highPriority);
-  vector<pair<ItemId, EResult>> getDownloadedItems();
+  vector<pair<ItemId, string>> getDownloadedItems();
 
   using QueryId = int;
   static constexpr int maxItemsPerPage = 50;
@@ -135,11 +138,8 @@ class UGC {
   void stopPlaytimeTracking(const vector<ItemId>&);
 
   private:
-  using QHandle = UGCQueryHandle_t;
-
   struct QueryData;
   struct Impl;
-
   HeapAllocated<Impl> impl;
 };
 }

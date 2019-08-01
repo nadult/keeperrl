@@ -1017,10 +1017,11 @@ void MainLoop::registerModPlaytime(bool started) {
   string currentMod = options->getStringValue(OptionId::CURRENT_MOD);
   auto localVer = getLocalVersion(currentMod);
   if (localVer.second) {
+    steam::ItemId itemId(localVer.second);
     auto& ugc = steam::UGC::instance();
     if (started)
-      ugc.startPlaytimeTracking({localVer.second});
+      ugc.startPlaytimeTracking({itemId});
     else
-      ugc.stopPlaytimeTracking({localVer.second});
+      ugc.stopPlaytimeTracking({itemId});
   }
 }

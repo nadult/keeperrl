@@ -1,6 +1,5 @@
 #pragma once
 
-#include "steamworks/public/steam/steamclientpublic.h"
 #include "util.h"
 
 // Notes:
@@ -20,6 +19,9 @@
 RICH_ENUM(QueryStatus, invalid, pending, completed, failed);
 
 namespace steam {
+
+  using int64 = long long;
+  using uint64 = unsigned long long;
 
 #define STEAM_IFACE_DECL(name)                                                                                         \
   intptr_t ptr;                                                                                                        \
@@ -44,13 +46,26 @@ class UGC;
 class Utils;
 class User;
 
+struct UserId {
+  explicit UserId(uint64 v) :value(v) {}
+  operator uint64() const { return value; }
+
+  uint64 value;
+};
+
+struct ItemId {
+  explicit ItemId(uint64 v) :value(v) {}
+  operator uint64() const { return value; }
+
+  uint64 value;
+};
+
 bool initAPI();
 
 // Also updates UGC queries
 void runCallbacks();
 
 string formatError(int value, const pair<int, const char*>* strings, int count);
-string errorText(EResult);
 string itemStateText(unsigned bits);
 
 vector<string> parseTagList(const string&);

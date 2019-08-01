@@ -392,13 +392,13 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
 
 #ifndef RELEASE
     // TODO: remove it when finished basic testing
-    items.append({1821799810, 1819019387, 1819019000});
+    items.append({steam::ItemId(1821799810), steam::ItemId(1819019387), steam::ItemId(1819019000)});
 #endif
   }
 
-  items.append(subscribedItems);
-  sort(items.begin(), items.end());
-  items.resize(std::unique(items.begin(), items.end()) - items.begin());
+  for (auto id : subscribedItems)
+    if (!items.contains(id))
+      items.emplace_back(id);
 
   if (items.empty()) {
     INFO << "STEAM: No items present";
@@ -447,7 +447,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
     mod.name = info.title;
     // TODO: playtimeSessions is not exactly the same as numGames
     mod.numGames = info.stats->playtimeSessions;
-    mod.steamId = info.id;
+    mod.steamId = info.id.value;
     mod.version = steam::getItemVersion(info.metadata).value_or(0);
     mod.isSubscribed = subscribedItems.contains(info.id);
     out.emplace_back(mod);
@@ -465,13 +465,13 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getOnlineMods(int modV
   return none;
 }
 
-optional<string> FileSharing::downloadSteamMod(unsigned long long id, const string& name, const DirectoryPath& modsDir,
+optional<string> FileSharing::downloadSteamMod(unsigned long long id_, const string& name, const DirectoryPath& modsDir,
                                                ProgressMeter& meter) {
   CHECK(steam::Client::isAvailable());
+  steam::ItemId id(id_);
 
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
-
   auto state = ugc.itemState(id);
 
   if (!(state & k_EItemStateInstalled)) {

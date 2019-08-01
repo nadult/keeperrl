@@ -1,7 +1,6 @@
 #pragma once
 
 #include "steam_base.h"
-#include "steamworks/public/steam/isteamutils.h"
 
 namespace steam {
 
@@ -11,7 +10,7 @@ class Utils {
 
   // TODO: return expected ?
   pair<int, int> imageSize(int image_id) const;
-  vector<uint8> imageData(int image_id) const;
+  vector<unsigned char> imageData(int image_id) const;
 
   unsigned appId() const;
 };

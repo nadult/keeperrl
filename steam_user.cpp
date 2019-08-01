@@ -1,5 +1,6 @@
 #include "steam_internal.h"
 #include "steam_user.h"
+#include "steamworks/public/steam/isteamuser.h"
 
 #define FUNC(name, ...) SteamAPI_ISteamUser_##name
 
@@ -9,8 +10,8 @@ User::User(intptr_t ptr) : ptr(ptr) {
 }
 User::~User() = default;
 
-CSteamID User::id() const {
-  return FUNC(GetSteamID)(ptr);
+UserId User::id() const {
+  return UserId(FUNC(GetSteamID)(ptr));
 }
 
 bool User::isLoggedOn() const {

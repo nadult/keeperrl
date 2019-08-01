@@ -7,7 +7,10 @@
 
 namespace steam {
 
+static_assert(sizeof(ItemId) == sizeof(PublishedFileId_t), "ItemId should be size-compatible");
+
 using QStatus = QueryStatus;
+using QHandle = UGCQueryHandle_t;
 using QueryCall = CallResult<SteamUGCQueryCompleted_t>;
 
 static const EnumMap<ItemVisibility, ERemoteStoragePublishedFileVisibility> itemVisibilityMap = {
@@ -58,11 +61,14 @@ struct UGC::Impl {
 
   // TODO: is it ok on windows?
   STEAM_CALLBACK_MANUAL(UGC::Impl, onDownloadFinished, DownloadItemResult_t, downloadFinished);
-  vector<pair<ItemId, EResult>> downloadedItems;
+  vector<pair<ItemId, string>> downloadedItems;
 };
 
 void UGC::Impl::onDownloadFinished(DownloadItemResult_t* result) {
-  downloadedItems.emplace_back(result->m_nPublishedFileId, result->m_eResult);
+  string error;
+  if(result->m_eResult != k_EResultOK)
+    error = errorText(result->m_eResult);
+  downloadedItems.emplace_back(result->m_nPublishedFileId, move(error));
 }
 
 UGC::UGC(intptr_t ptr) : ptr(ptr) {
@@ -78,14 +84,15 @@ int UGC::numSubscribedItems() const {
 }
 
 vector<ItemId> UGC::subscribedItems() const {
-  vector<ItemId> out(numSubscribedItems());
-  int result = FUNC(GetSubscribedItems)(ptr, out.data(), out.size());
-  out.resize(result);
+  vector<ItemId> out(numSubscribedItems(), ItemId(0));
+  int numItems = FUNC(GetSubscribedItems)(ptr, (PublishedFileId_t*)out.data(), out.size());
+  while(out.size() > numItems)
+    out.pop_back();
   return out;
 }
 
 uint32_t UGC::itemState(ItemId id) const {
-  return FUNC(GetItemState)(ptr, id);
+  return FUNC(GetItemState)(ptr, id.value);
 }
 
 optional<DownloadInfo> UGC::downloadInfo(ItemId id) const {
@@ -109,7 +116,7 @@ bool UGC::downloadItem(ItemId id, bool highPriority) {
   return FUNC(DownloadItem)(ptr, id, highPriority);
 }
 
-vector<pair<ItemId, EResult>> UGC::getDownloadedItems() {
+vector<pair<ItemId, string>> UGC::getDownloadedItems() {
   auto out = std::move(impl->downloadedItems);
   impl->downloadedItems.clear();
   return out;
@@ -118,7 +125,7 @@ vector<pair<ItemId, EResult>> UGC::getDownloadedItems() {
 UGC::QueryId UGC::createDetailsQuery(const ItemDetailsInfo& info, vector<ItemId> items) {
   CHECK(items.size() >= 1 && items.size() <= maxItemsPerPage);
 
-  auto handle = FUNC(CreateQueryUGCDetailsRequest)(ptr, items.data(), items.size());
+  auto handle = FUNC(CreateQueryUGCDetailsRequest)(ptr, (PublishedFileId_t*)items.data(), items.size());
   CHECK(handle != k_UGCQueryHandleInvalid);
   // TODO: properly handle errors
 
@@ -209,9 +216,7 @@ vector<ItemInfo> UGC::finishDetailsQuery(QueryId qid) {
     for (int n = 0; n < numResults; n++) {
       auto ret = FUNC(GetQueryUGCResult)(ptr, query.handle, n, &details);
       CHECK(ret);
-      ItemInfo newItem;
-      newItem.id = details.m_nPublishedFileId;
-      newItem.ownerId = details.m_ulSteamIDOwner;
+      ItemInfo newItem{ItemId(details.m_nPublishedFileId), UserId(details.m_ulSteamIDOwner)};
       newItem.visibility = ItemVisibility::public_;
       for (auto vis : ENUM_ALL(ItemVisibility))
         if (itemVisibilityMap[vis] == details.m_eVisibility)
@@ -361,7 +366,7 @@ optional<UpdateItemResult> UGC::tryUpdateItem() {
       impl->createItem.clear();
 
       if (out.m_eResult == k_EResultOK) {
-        impl->createItemInfo->id = out.m_nPublishedFileId;
+        impl->createItemInfo->id = ItemId(out.m_nPublishedFileId);
         beginUpdateItem(*impl->createItemInfo);
         return none;
       } else {
@@ -380,7 +385,7 @@ optional<UpdateItemResult> UGC::tryUpdateItem() {
     optional<string> error;
     if (out.m_eResult != k_EResultOK)
       error = string("Error while updating item: ") + errorText(out.m_eResult);
-    return UpdateItemResult{out.m_nPublishedFileId, error, out.m_bUserNeedsToAcceptWorkshopLegalAgreement};
+    return UpdateItemResult{ItemId(out.m_nPublishedFileId), error, out.m_bUserNeedsToAcceptWorkshopLegalAgreement};
   }
   return none;
 }
@@ -404,11 +409,11 @@ void UGC::deleteItem(ItemId id) {
 
 void UGC::startPlaytimeTracking(const vector<ItemId>& ids) {
   INFO << "STEAM: playtime tracking started for: " << ids;
-  FUNC(StartPlaytimeTracking)(ptr, (ItemId*)ids.data(), (unsigned)ids.size());
+  FUNC(StartPlaytimeTracking)(ptr, (PublishedFileId_t*)ids.data(), (unsigned)ids.size());
 }
 
 void UGC::stopPlaytimeTracking(const vector<ItemId>& ids) {
   INFO << "STEAM: playtime tracking stopped for: " << ids;
-  FUNC(StopPlaytimeTracking)(ptr, (ItemId*)ids.data(), (unsigned)ids.size());
+  FUNC(StopPlaytimeTracking)(ptr, (PublishedFileId_t*)ids.data(), (unsigned)ids.size());
 }
 }
