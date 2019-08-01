@@ -109,6 +109,8 @@ class MainLoop {
   // TODO: move to file_sharing?
   pair<int, unsigned long long> getLocalVersion(const string& mod);
   void updateLocalVersion(const string& mod, int version, unsigned long long steamId);
+  void removeMod(const string &modName);
+  void removeOldSteamMod(unsigned long long steamId, const string &newName);
 
   void registerModPlaytime(bool started);
 };

@@ -491,6 +491,24 @@ void MainLoop::updateLocalVersion(const string& mod, int version, unsigned long 
   }
 }
 
+void MainLoop::removeMod(const string& name) {
+  // TODO: how to make it safer?
+  auto modDir = dataFreePath.subdirectory(gameConfigSubdir).subdirectory(name);
+  modDir.removeRecursively();
+}
+
+// When mod changes name, we have to remove old directory
+void MainLoop::removeOldSteamMod(unsigned long long steamId, const string& newName) {
+  auto modDir = dataFreePath.subdirectory(gameConfigSubdir);
+  auto modList = modDir.getSubDirs();
+  for (auto& modName : modList)
+    if (modName != newName) {
+      auto ver = getLocalVersion(modName);
+      if (ver.second == steamId)
+        removeMod(modName);
+    }
+}
+
 void MainLoop::showMods() {
   int currentIndex = 0;
   ScrollPosition scrollPos;
@@ -519,7 +537,7 @@ void MainLoop::showMods() {
       auto upToDate = "up-to-date"_s;
       if (onlineMods)
         for (auto& onlineMod : *onlineMods)
-          if (onlineMod.name == mod && (onlineMod.steamId == localVer.second || !localVer.second) &&
+          if ((onlineMod.name == mod || (onlineMod.steamId && onlineMod.steamId == localVer.second)) &&
               onlineMod.version > localVer.first)
             upToDate = "new version available";
       lines.emplace_back(ListElem(title, upToDate, ListElem::NORMAL));
@@ -551,8 +569,11 @@ void MainLoop::showMods() {
             error = downloadMod.steamId?
               fileSharing->downloadSteamMod(*downloadMod.steamId, downloadMod.name, modDir, meter) :
               fileSharing->downloadMod(downloadMod.name, modDir, meter);
-            if (!error)
+            if (!error) {
               updateLocalVersion(downloadMod.name, downloadMod.version, downloadMod.steamId.value_or(0));
+              if (downloadMod.steamId)
+                removeOldSteamMod(*downloadMod.steamId, downloadMod.name);
+            }
           },
           [&] {
             cancelled = true;
