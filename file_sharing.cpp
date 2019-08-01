@@ -12,6 +12,7 @@
 #include "steam_client.h"
 #include "steam_ugc.h"
 #include "steam_user.h"
+#include "steam_friends.h"
 
 FileSharing::FileSharing(const string& url, const string& modVer, Options& o, string id)
     : uploadUrl(url), modVersion(modVer), options(o), uploadLoop(bindMethod(&FileSharing::uploadingLoop, this)),
@@ -365,6 +366,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
   // TODO: filter mods by tags early
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
+  auto& friends = steam::Friends::instance();
 
   vector<steam::ItemId> items, subscribedItems;
   subscribedItems = ugc.subscribedItems();
@@ -411,25 +413,43 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
   auto qid = ugc.createDetailsQuery(detailsInfo, items);
   ugc.waitForQueries({qid}, 60); // Max 3 seconds
 
-  vector<OnlineModInfo> out;
-  if (ugc.queryStatus(qid) == QueryStatus::completed) {
-    for (auto& info : ugc.finishDetailsQuery(qid)) {
-      if(!info.tags.contains("Mod") || !info.tags.contains(modVersion))
-        continue;
-
-      OnlineModInfo mod;
-      mod.author = "TODO";
-      mod.description = shortDescription(info.description);
-      mod.name = info.title;
-      mod.numGames = info.stats->playtimeSessions;
-      mod.steamId = info.id;
-      mod.version = steam::getItemVersion(info.metadata).value_or(0);
-      mod.isSubscribed = subscribedItems.contains(info.id);
-      out.emplace_back(mod);
-    }
-  } else {
+  if (ugc.queryStatus(qid) != QueryStatus::completed) {
     INFO << "STEAM: DetailsQuery failed: " << ugc.queryError(qid, "timeout (3 sec)");
     ugc.finishQuery(qid);
+    return {};
+  }
+
+  auto infos = ugc.finishDetailsQuery(qid);
+  for (auto& info : infos)
+    friends.requestUserInfo(info.ownerId, true);
+  vector<optional<string>> ownerNames(infos.size());
+  auto retrieveUserNames = [&]() {
+    bool done = true;
+    for (int n = 0; n < infos.size(); n++) {
+      if (!ownerNames[n])
+        ownerNames[n] = friends.retrieveUserName(infos[n].ownerId);
+      if (!ownerNames[n])
+        done = false;
+    }
+    return done;
+  };
+  steam::sleepUntil(retrieveUserNames, 30); // Max 1.5 seconds
+  vector<OnlineModInfo> out;
+
+  for (int n = 0; n < infos.size(); n++) {
+    auto& info = infos[n];
+    if (!info.tags.contains("Mod") || !info.tags.contains(modVersion))
+      continue;
+
+    OnlineModInfo mod;
+    mod.author = ownerNames[n].value_or("unknown");
+    mod.description = shortDescription(info.description);
+    mod.name = info.title;
+    mod.numGames = info.stats->playtimeSessions;
+    mod.steamId = info.id;
+    mod.version = steam::getItemVersion(info.metadata).value_or(0);
+    mod.isSubscribed = subscribedItems.contains(info.id);
+    out.emplace_back(mod);
   }
 
   return out;
