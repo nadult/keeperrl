@@ -81,8 +81,8 @@ string formatTags(const vector<string>& tags) {
   return out;
 }
 
-vector<string> validTags() {
-  return {"Alpha_28", "Alpha_29", "Mod", "Dungeon"};
+vector<string> standardTags() {
+  return {"Alpha28", "Alpha29", "Mod", "Dungeon"};
 }
 
 optional<int> getItemVersion(const string& metadata) {

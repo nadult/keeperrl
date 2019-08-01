@@ -400,7 +400,8 @@ static int keeperMain(po::parser& commandLineFlags) {
   AppConfig appConfig(dataPath.file("appconfig-dev.txt"));
 #endif
   string uploadUrl = appConfig.get<string>("upload_url");
-  FileSharing fileSharing(uploadUrl, options, installId);
+  auto modVersion = appConfig.get<string>("mod_version");
+  FileSharing fileSharing(uploadUrl, modVersion, options, installId);
   Highscores highscores(userPath.file("highscores.dat"), fileSharing, &options);
   if (commandLineFlags["worldgen_test"].was_set()) {
     MainLoop loop(nullptr, &highscores, &fileSharing, freeDataPath, userPath, &options, &jukebox, &sokobanInput, nullptr,
@@ -464,7 +465,7 @@ static int keeperMain(po::parser& commandLineFlags) {
     initializeRendererTiles(renderer, paidDataPath.subdirectory("images"));
   TileSet tileSet(paidDataPath.subdirectory("images"), freeDataPath.subdirectory(gameConfigSubdir));
   renderer.setTileSet(&tileSet);
-  FileSharing bugreportSharing("http://retired.keeperrl.com/~bugreports", options, installId);
+  FileSharing bugreportSharing("http://retired.keeperrl.com/~bugreports", modVersion, options, installId);
   unique_ptr<View> view;
   view.reset(WindowView::createDefaultView(
       {renderer, guiFactory, tilesPresent, &options, &clock, soundLibrary, &bugreportSharing, userPath, installId}));

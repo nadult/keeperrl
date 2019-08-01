@@ -13,8 +13,9 @@
 #include "steam_ugc.h"
 #include "steam_user.h"
 
-FileSharing::FileSharing(const string& url, Options& o, string id) : uploadUrl(url), options(o),
-    uploadLoop(bindMethod(&FileSharing::uploadingLoop, this)), installId(id), wasCancelled(false) {
+FileSharing::FileSharing(const string& url, const string& modVer, Options& o, string id)
+    : uploadUrl(url), modVersion(modVer), options(o), uploadLoop(bindMethod(&FileSharing::uploadingLoop, this)),
+      installId(id), wasCancelled(false) {
   curl_global_init(CURL_GLOBAL_ALL);
 }
 
@@ -354,13 +355,14 @@ static string shortDescription(string text, int max_lines = 3) {
   return text;
 }
 
-optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVersion) {
+optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
   if (!steam::Client::isAvailable()) {
     INFO << "STEAM: Client not available"; // TODO: report info to user
     return none;
   }
 
   // TODO: thread safety
+  // TODO: filter mods by tags early
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
 
@@ -388,7 +390,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
 
 #ifndef RELEASE
     // TODO: remove it when finished basic testing
-    items.append({1819019000, 1819019123, 1819019260, 1819019387});
+    items.append({1821799810, 1819019387, 1819019000});
 #endif
   }
 
@@ -412,6 +414,9 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
   vector<OnlineModInfo> out;
   if (ugc.queryStatus(qid) == QueryStatus::completed) {
     for (auto& info : ugc.finishDetailsQuery(qid)) {
+      if(!info.tags.contains("Mod") || !info.tags.contains(modVersion))
+        continue;
+
       OnlineModInfo mod;
       mod.author = "TODO";
       mod.description = shortDescription(info.description);
@@ -431,7 +436,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods(int modVe
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getOnlineMods(int modVersion) {
-  if (auto steamMods = getSteamMods(modVersion))
+  if (auto steamMods = getSteamMods())
     return steamMods;
   if (options.getBoolValue(OptionId::ONLINE))
     if (auto content = downloadContent(uploadUrl + "/get_mods.php?version=" + toString(modVersion)))

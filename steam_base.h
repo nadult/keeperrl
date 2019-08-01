@@ -55,7 +55,7 @@ string itemStateText(unsigned bits);
 
 vector<string> parseTagList(const string&);
 string formatTags(const vector<string>&);
-vector<string> validTags();
+vector<string> standardTags();
 
 optional<int> getItemVersion(const string& metadata);
 
