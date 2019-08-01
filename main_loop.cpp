@@ -36,6 +36,8 @@
 #include "game_config.h"
 #include "avatar_menu_option.h"
 #include "creature_name.h"
+#include "steam_ugc.h"
+#include "steam_client.h"
 #include "tileset.h"
 #include "content_factory.h"
 #include "scroll_position.h"
@@ -240,8 +242,15 @@ void MainLoop::bugReportSave(PGame& game, FilePath path) {
   Square::progressMeter = nullptr;
 }
 
-MainLoop::ExitCondition MainLoop::playGame(PGame game, bool withMusic, bool noAutoSave,
+MainLoop::ExitCondition MainLoop::playGame(PGame game, bool withMusic, bool noAutoSave, bool splashScreen,
     function<optional<ExitCondition>(WGame)> exitCondition, milliseconds stepTimeMilli, optional<int> maxTurns) {
+  if (!splashScreen)
+    registerModPlaytime(true);
+  OnExit on_exit([&]() {
+    if (!splashScreen)
+      registerModPlaytime(false);
+  });
+
   tileSet->setTilePaths(game->getContentFactory()->tilePaths);
   view->reset();
   if (!noAutoSave)
@@ -445,7 +454,7 @@ void MainLoop::splashScreen() {
   auto model = ModelBuilder(&meter, Random, options, sokobanInput, &contentFactory, std::move(enemyFactory))
       .splashModel(dataFreePath.file("splash.txt"));
   playGame(Game::splashScreen(std::move(model), CampaignBuilder::getEmptyCampaign(), std::move(contentFactory)),
-      false, true);
+      false, true, true);
 }
 
 void MainLoop::showCredits(const FilePath& path) {
@@ -625,7 +634,7 @@ void MainLoop::launchQuickGame(optional<int> maxTurns) {
     auto models = prepareCampaignModels(*result, std::move(avatar), Random, &contentFactory);
     game = Game::campaignGame(std::move(models.models), *result, std::move(avatar), std::move(contentFactory));
   }
-  playGame(std::move(game), true, false, nullptr, milliseconds{3}, maxTurns);
+  playGame(std::move(game), true, false, false, nullptr, milliseconds{3}, maxTurns);
 }
 
 void MainLoop::start(bool tilesPresent) {
@@ -645,7 +654,7 @@ void MainLoop::start(bool tilesPresent) {
     switch (*choice) {
       case 0: {
         if (PGame game = prepareCampaign(Random))
-          playGame(std::move(game), true, false);
+          playGame(std::move(game), true, false, false);
         view->reset();
         break;
       }
@@ -825,7 +834,7 @@ int MainLoop::battleTest(int numTries, const FilePath& levelPath, CreatureList a
       else
         return none;
     };
-    auto result = playGame(std::move(game), false, true, exitCondition, milliseconds{3});
+    auto result = playGame(std::move(game), false, true, false, exitCondition, milliseconds{3});
     switch (result) {
       case ExitCondition::ALLIES_WON:
         ++numAllies;
@@ -978,4 +987,19 @@ bool MainLoop::eraseSave() {
   return !options->getBoolValue(OptionId::KEEP_SAVEFILES);
 #endif
   return false;
+}
+
+void MainLoop::registerModPlaytime(bool started) {
+  if (!steam::Client::isAvailable())
+    return;
+
+  string currentMod = options->getStringValue(OptionId::CURRENT_MOD);
+  auto localVer = getLocalVersion(currentMod);
+  if (localVer.second) {
+    auto& ugc = steam::UGC::instance();
+    if (started)
+      ugc.startPlaytimeTracking({localVer.second});
+    else
+      ugc.stopPlaytimeTracking({localVer.second});
+  }
 }

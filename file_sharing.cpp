@@ -445,6 +445,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
     mod.author = ownerNames[n].value_or("unknown");
     mod.description = shortDescription(info.description);
     mod.name = info.title;
+    // TODO: playtimeSessions is not exactly the same as numGames
     mod.numGames = info.stats->playtimeSessions;
     mod.steamId = info.id;
     mod.version = steam::getItemVersion(info.metadata).value_or(0);

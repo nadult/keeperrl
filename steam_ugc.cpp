@@ -403,10 +403,12 @@ void UGC::deleteItem(ItemId id) {
 }
 
 void UGC::startPlaytimeTracking(const vector<ItemId>& ids) {
+  INFO << "STEAM: playtime tracking started for: " << ids;
   FUNC(StartPlaytimeTracking)(ptr, (ItemId*)ids.data(), (unsigned)ids.size());
 }
 
 void UGC::stopPlaytimeTracking(const vector<ItemId>& ids) {
+  INFO << "STEAM: playtime tracking stopped for: " << ids;
   FUNC(StopPlaytimeTracking)(ptr, (ItemId*)ids.data(), (unsigned)ids.size());
 }
 }
