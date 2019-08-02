@@ -9,10 +9,12 @@
 
 #include <curl/curl.h>
 
+#ifdef USE_STEAMWORKS
 #include "steam_client.h"
 #include "steam_ugc.h"
 #include "steam_user.h"
 #include "steam_friends.h"
+#endif
 
 FileSharing::FileSharing(const string& url, const string& modVer, Options& o, string id)
     : uploadUrl(url), modVersion(modVer), options(o), uploadLoop(bindMethod(&FileSharing::uploadingLoop, this)),
@@ -357,6 +359,7 @@ static string shortDescription(string text, int max_lines = 3) {
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
+#ifdef USE_STEAMWORKS
   if (!steam::Client::isAvailable()) {
     INFO << "STEAM: Client not available"; // TODO: report info to user
     return none;
@@ -454,6 +457,9 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
   }
 
   return out;
+#else
+  return none;
+#endif
 }
 
 optional<vector<FileSharing::OnlineModInfo>> FileSharing::getOnlineMods(int modVersion) {
@@ -467,6 +473,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getOnlineMods(int modV
 
 optional<string> FileSharing::downloadSteamMod(unsigned long long id_, const string& name, const DirectoryPath& modsDir,
                                                ProgressMeter& meter) {
+#ifdef USE_STEAMWORKS
   CHECK(steam::Client::isAvailable());
   steam::ItemId id(id_);
 
@@ -497,6 +504,9 @@ optional<string> FileSharing::downloadSteamMod(unsigned long long id_, const str
 
   DirectoryPath subDir(string(modsDir.getPath()) + "/" + name);
   return DirectoryPath::copyFiles(DirectoryPath(instInfo->folder), subDir, true);
+#else
+  return string("Steam support is not available in this build");
+#endif
 }
 
 optional<string> FileSharing::downloadMod(const string& modName, const DirectoryPath& modsDir, ProgressMeter& meter) {

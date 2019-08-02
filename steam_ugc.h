@@ -34,7 +34,7 @@ struct ItemDetailsInfo {
 };
 
 struct FindItemInfo {
-  FindOrder order;
+  FindOrder order = FindOrder::playtime;
   string searchText;
   string tags;
   bool anyTag = false;

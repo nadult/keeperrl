@@ -59,7 +59,7 @@ struct UGC::Impl {
   CallResult<CreateItemResult_t> createItem;
   CallResult<SubmitItemUpdateResult_t> updateItem;
 
-  // TODO: is it ok on windows?
+  // TODO: is it ok on windows? NO, remove it
   STEAM_CALLBACK_MANUAL(UGC::Impl, onDownloadFinished, DownloadItemResult_t, downloadFinished);
   vector<pair<ItemId, string>> downloadedItems;
 };

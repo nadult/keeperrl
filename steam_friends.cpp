@@ -18,7 +18,7 @@ struct Friends::Impl {
     return name;
   }
 
-  // TODO: is it ok on windows?
+  // TODO: is it ok on windows? NO, remove it
   STEAM_CALLBACK_MANUAL(Friends::Impl, onPersonaStateChange, PersonaStateChange_t, personaStateChange);
 };
 

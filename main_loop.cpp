@@ -36,13 +36,16 @@
 #include "game_config.h"
 #include "avatar_menu_option.h"
 #include "creature_name.h"
-#include "steam_ugc.h"
-#include "steam_client.h"
 #include "tileset.h"
 #include "content_factory.h"
 #include "scroll_position.h"
 #include "miniunz.h"
 #include "external_enemies_type.h"
+
+#ifdef USE_STEAMWORKS
+#include "steam_ugc.h"
+#include "steam_client.h"
+#endif
 
 MainLoop::MainLoop(View* v, Highscores* h, FileSharing* fSharing, const DirectoryPath& freePath,
     const DirectoryPath& uPath, Options* o, Jukebox* j, SokobanInput* soko, TileSet* tileSet, bool singleThread, int sv)
@@ -1011,6 +1014,7 @@ bool MainLoop::eraseSave() {
 }
 
 void MainLoop::registerModPlaytime(bool started) {
+#ifdef USE_STEAMWORKS
   if (!steam::Client::isAvailable())
     return;
 
@@ -1024,4 +1028,5 @@ void MainLoop::registerModPlaytime(bool started) {
     else
       ugc.stopPlaytimeTracking({itemId});
   }
+#endif
 }

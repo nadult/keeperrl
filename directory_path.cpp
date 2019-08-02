@@ -112,15 +112,9 @@ bool isAbsolutePath(const char* str) {
 
 DirectoryPath DirectoryPath::current() {
   char buffer[2048];
-#ifdef WINDOWS
-  if (!GetCurrentDirectory(sizeof(buf), buf))
-    CHECK(false && "GetCurrentDirectory error");
-  return string(buf);
-#else
   char* name = getcwd(buffer, sizeof(buffer) - 1);
   CHECK(name && "getcwd error");
   return DirectoryPath(name);
-#endif
 }
 
 optional<string> DirectoryPath::copyFiles(DirectoryPath from, DirectoryPath to, bool recursive) {
