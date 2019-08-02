@@ -96,8 +96,13 @@ compile: gen_version $(NAME)
 stdafx.h.gch: stdafx.h $(wildcard *.h)
 	$(GCC) -MMD $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: %.cpp
-	$(GCC) -MMD $(CFLAGS) -c $< -o $@
+ifndef RELEASE
+PCH = $(OBJDIR)/stdafx.h.gch
+PCHINC = -include stdafx.h
+endif
+
+$(OBJDIR)/%.o: %.cpp ${PCH}
+	$(GCC) -MMD $(CFLAGS) $(PCHINC) -c $< -o $@
 
 $(NAME): $(OBJS) $(OBJDIR)/main.o
 	$(LD) $(CFLAGS) -o $@ $^ $(LIBS)
