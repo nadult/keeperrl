@@ -162,14 +162,14 @@ void UGC::updateQueries() {
       query.call.update();
 }
 
-void UGC::waitForQueries(vector<QueryId> ids, int maxIters, milliseconds iterMsec) {
+void UGC::waitForQueries(vector<QueryId> ids, milliseconds duration) {
   auto allFinished = [&]() {
     for (auto qid : ids)
       if (queryStatus(qid) == QStatus::pending)
         return false;
     return true;
   };
-  sleepUntil(allFinished, maxIters, iterMsec);
+  sleepUntil(allFinished, duration);
 }
 
 bool UGC::isQueryValid(QueryId qid) const {

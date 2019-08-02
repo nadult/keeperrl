@@ -384,7 +384,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
     // TODO: handle errors
     // TODO: czy chcemy je jakoś filtrować? Czy na razie po prostu dajemy wszystkie / najpopularniejsze?
 
-    ugc.waitForQueries({qid}, 40); // Max 2 seconds
+    ugc.waitForQueries({qid}, milliseconds(2000));
 
     if (ugc.queryStatus(qid) == QueryStatus::completed) {
       items = ugc.finishFindQuery(qid);
@@ -414,7 +414,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
   detailsInfo.playtimeStatsDays = 9999;
   detailsInfo.metadata = true;
   auto qid = ugc.createDetailsQuery(detailsInfo, items);
-  ugc.waitForQueries({qid}, 60); // Max 3 seconds
+  ugc.waitForQueries({qid}, milliseconds(3000));
 
   if (ugc.queryStatus(qid) != QueryStatus::completed) {
     INFO << "STEAM: DetailsQuery failed: " << ugc.queryError(qid, "timeout (3 sec)");
@@ -436,7 +436,7 @@ optional<vector<FileSharing::OnlineModInfo>> FileSharing::getSteamMods() {
     }
     return done;
   };
-  steam::sleepUntil(retrieveUserNames, 30); // Max 1.5 seconds
+  steam::sleepUntil(retrieveUserNames, milliseconds(1500));
   vector<OnlineModInfo> out;
 
   for (int n = 0; n < infos.size(); n++) {

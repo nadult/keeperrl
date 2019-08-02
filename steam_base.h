@@ -74,13 +74,15 @@ vector<string> standardTags();
 
 optional<int> getItemVersion(const string& metadata);
 
-template <class CondFunc> void sleepUntil(CondFunc&& func, int maxIters, milliseconds iterMsec = milliseconds(50)) {
+template <class CondFunc> void sleepUntil(CondFunc&& func, milliseconds duration) {
+  milliseconds timeStep(10);
+  auto maxIters = duration / timeStep;
   for (int i = 0; i < maxIters; i++) {
     steam::runCallbacks();
     if (func())
       break;
     if (i + 1 < maxIters)
-      sleep_for(iterMsec);
+      sleep_for(timeStep);
   }
 }
 
