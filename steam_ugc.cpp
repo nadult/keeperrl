@@ -58,26 +58,12 @@ struct UGC::Impl {
   optional<UpdateItemInfo> createItemInfo;
   CallResult<CreateItemResult_t> createItem;
   CallResult<SubmitItemUpdateResult_t> updateItem;
-
-  // TODO: is it ok on windows? NO, remove it
-  STEAM_CALLBACK_MANUAL(UGC::Impl, onDownloadFinished, DownloadItemResult_t, downloadFinished);
-  vector<pair<ItemId, string>> downloadedItems;
 };
-
-void UGC::Impl::onDownloadFinished(DownloadItemResult_t* result) {
-  string error;
-  if(result->m_eResult != k_EResultOK)
-    error = errorText(result->m_eResult);
-  downloadedItems.emplace_back(result->m_nPublishedFileId, move(error));
-}
 
 UGC::UGC(intptr_t ptr) : ptr(ptr) {
   static_assert(maxItemsPerPage <= (int)kNumUGCResultsPerPage, "");
-  impl->downloadFinished.Register(impl.get(), &Impl::onDownloadFinished);
 }
-UGC::~UGC() {
-  impl->downloadFinished.Unregister();
-}
+UGC::~UGC() = default;
 
 int UGC::numSubscribedItems() const {
   return (int)FUNC(GetNumSubscribedItems)(ptr);
@@ -93,6 +79,10 @@ vector<ItemId> UGC::subscribedItems() const {
 
 uint32_t UGC::itemState(ItemId id) const {
   return FUNC(GetItemState)(ptr, id.value);
+}
+
+bool UGC::isDownloading(ItemId id) const {
+  return itemState(id) & (k_EItemStateDownloading | k_EItemStateDownloadPending);
 }
 
 optional<DownloadInfo> UGC::downloadInfo(ItemId id) const {
@@ -114,12 +104,6 @@ optional<InstallInfo> UGC::installInfo(ItemId id) const {
 
 bool UGC::downloadItem(ItemId id, bool highPriority) {
   return FUNC(DownloadItem)(ptr, id, highPriority);
-}
-
-vector<pair<ItemId, string>> UGC::getDownloadedItems() {
-  auto out = std::move(impl->downloadedItems);
-  impl->downloadedItems.clear();
-  return out;
 }
 
 UGC::QueryId UGC::createDetailsQuery(const ItemDetailsInfo& info, vector<ItemId> items) {

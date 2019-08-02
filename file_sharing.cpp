@@ -488,7 +488,7 @@ optional<string> FileSharing::downloadSteamMod(unsigned long long id_, const str
     // TODO: meter support
     while (!consumeCancelled()) {
       steam::runCallbacks();
-      if (!ugc.getDownloadedItems().empty())
+      if (!ugc.isDownloading(id))
         break;
       sleep_for(milliseconds(50));
     }

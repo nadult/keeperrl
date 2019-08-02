@@ -17,21 +17,12 @@ struct Friends::Impl {
     userNames[userID] = name;
     return name;
   }
-
-  // TODO: is it ok on windows? NO, remove it
-  STEAM_CALLBACK_MANUAL(Friends::Impl, onPersonaStateChange, PersonaStateChange_t, personaStateChange);
 };
-
-void Friends::Impl::onPersonaStateChange(PersonaStateChange_t* result) {
-}
 
 Friends::Friends(intptr_t ptr) : ptr(ptr) {
   impl->ptr = ptr;
-  impl->personaStateChange.Register(impl.get(), &Impl::onPersonaStateChange);
 }
-Friends::~Friends() {
-  impl->personaStateChange.Unregister();
-}
+Friends::~Friends() = default;
 
 int Friends::count(unsigned flags) const {
   return FUNC(GetFriendCount)(ptr, flags);

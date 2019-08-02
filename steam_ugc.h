@@ -101,10 +101,11 @@ class UGC {
   // TODO: return expected everywhere where something may fail ?
   // maybe just return optional?
   uint32_t itemState(ItemId) const;
+  bool isDownloading(ItemId) const;
+
   optional<DownloadInfo> downloadInfo(ItemId) const;
   optional<InstallInfo> installInfo(ItemId) const;
   bool downloadItem(ItemId, bool highPriority);
-  vector<pair<ItemId, string>> getDownloadedItems();
 
   using QueryId = int;
   static constexpr int maxItemsPerPage = 50;
