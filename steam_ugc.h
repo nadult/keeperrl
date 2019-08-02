@@ -2,9 +2,6 @@
 
 #include "steam_base.h"
 
-// TODO: remove it, EItemState
-#include "steamworks/public/steam/isteamugc.h"
-
 RICH_ENUM(SteamFindOrder, votes, date, subscriptions, playtime);
 RICH_ENUM(SteamItemVisibility, public_, friends, private_);
 
@@ -102,6 +99,7 @@ class UGC {
   // maybe just return optional?
   uint32_t itemState(ItemId) const;
   bool isDownloading(ItemId) const;
+  bool isInstalled(ItemId) const;
 
   optional<DownloadInfo> downloadInfo(ItemId) const;
   optional<InstallInfo> installInfo(ItemId) const;

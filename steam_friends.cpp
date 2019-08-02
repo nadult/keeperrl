@@ -1,5 +1,6 @@
 #include "steam_internal.h"
 #include "steam_friends.h"
+#include "steamworks/public/steam/isteamfriends.h"
 #include <map>
 
 #define FUNC(name, ...) SteamAPI_ISteamFriends_##name

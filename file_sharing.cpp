@@ -479,9 +479,8 @@ optional<string> FileSharing::downloadSteamMod(unsigned long long id_, const str
 
   auto& ugc = steam::UGC::instance();
   auto& user = steam::User::instance();
-  auto state = ugc.itemState(id);
 
-  if (!(state & k_EItemStateInstalled)) {
+  if (!ugc.isInstalled(id)) {
     if (!ugc.downloadItem(id, true))
       return string("Error while downloading mod.");
 
@@ -493,8 +492,7 @@ optional<string> FileSharing::downloadSteamMod(unsigned long long id_, const str
       sleep_for(milliseconds(50));
     }
 
-    state = ugc.itemState(id);
-    if (!(state & k_EItemStateInstalled))
+    if (!ugc.isInstalled(id))
       return string("Error while downloading mod.");
   }
 

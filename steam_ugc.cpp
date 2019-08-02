@@ -2,6 +2,7 @@
 #include "steam_ugc.h"
 #include "steam_utils.h"
 #include "steam_call_result.h"
+#include "steamworks/public/steam/isteamugc.h"
 
 #define FUNC(name, ...) SteamAPI_ISteamUGC_##name
 
@@ -83,6 +84,10 @@ uint32_t UGC::itemState(ItemId id) const {
 
 bool UGC::isDownloading(ItemId id) const {
   return itemState(id) & (k_EItemStateDownloading | k_EItemStateDownloadPending);
+}
+  
+bool UGC::isInstalled(ItemId id) const {
+  return itemState(id) & k_EItemStateInstalled;
 }
 
 optional<DownloadInfo> UGC::downloadInfo(ItemId id) const {
